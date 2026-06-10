@@ -6,6 +6,7 @@ const IPC = {
     GET_BY_ID: "documents:getById",
     CREATE: "documents:create",
     UPDATE: "documents:update",
+    RESTORE_VERSION: "documents:restoreVersion",
     DELETE: "documents:delete",
     GET_VERSIONS: "documents:getVersions"
   }
@@ -22,6 +23,7 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
     getById: (id) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.GET_BY_ID, id),
     create: (dto) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.CREATE, dto),
     update: (id, dto) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.UPDATE, id, dto),
+    restoreVersion: (id, versionNumber) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.RESTORE_VERSION, id, versionNumber),
     delete: (id) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.DELETE, id),
     getVersions: (id) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.GET_VERSIONS, id)
   },

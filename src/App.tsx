@@ -4,7 +4,7 @@ import { useAuth } from './renderer/features/auth/AuthContext';
 import { routerController } from './renderer/controllers/RouterController';
 import { DocumentsPage } from './renderer/pages/DocumentsPage';
 import { DocumentDetailPage } from './renderer/pages/DocumentDetailPage';
-import RegisterForm from './renderer/features/auth/RegisterForm';
+import RegisterForm from './renderer/pages/RegisterPage/RegisterPage.view';
 import './App.css';
 
 function App() {
