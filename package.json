@@ -7,6 +7,7 @@
     "dev": "npm run rebuild && vite",
     "build": "tsc && vite build && electron-builder",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "db:setup": "node scripts/setup-db.js",

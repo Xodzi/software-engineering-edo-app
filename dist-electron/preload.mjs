@@ -5,14 +5,21 @@ const IPC = {
     GET_ALL: "documents:getAll",
     GET_BY_ID: "documents:getById",
     CREATE: "documents:create",
+    CREATE_FROM_VERSION: "documents:createFromVersion",
     UPDATE: "documents:update",
     RESTORE_VERSION: "documents:restoreVersion",
     DELETE: "documents:delete",
     GET_VERSIONS: "documents:getVersions",
+    CHECK_VERSION_INTEGRITY: "documents:checkVersionIntegrity",
     GET_ATTACHMENTS: "documents:getAttachments",
     ADD_ATTACHMENT: "documents:addAttachment",
     GET_ATTACHMENT_FILE: "documents:getAttachmentFile",
     DELETE_ATTACHMENT: "documents:deleteAttachment"
+  },
+  APPROVAL: {
+    SUBMIT: "approval:submit",
+    APPROVE: "approval:approve",
+    REJECT: "approval:reject"
   }
 };
 const AUTH_CHANNELS = {
@@ -26,10 +33,12 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
     getAll: () => electron.ipcRenderer.invoke(IPC.DOCUMENTS.GET_ALL),
     getById: (id) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.GET_BY_ID, id),
     create: (dto) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.CREATE, dto),
+    createFromVersion: (dto) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.CREATE_FROM_VERSION, dto),
     update: (id, dto) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.UPDATE, id, dto),
     restoreVersion: (id, versionNumber) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.RESTORE_VERSION, id, versionNumber),
     delete: (id) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.DELETE, id),
     getVersions: (id) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.GET_VERSIONS, id),
+    checkVersionIntegrity: (id) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.CHECK_VERSION_INTEGRITY, id),
     getAttachments: (id) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.GET_ATTACHMENTS, id),
     addAttachment: (id, dto) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.ADD_ATTACHMENT, id, dto),
     getAttachmentFile: (id, attachmentId) => electron.ipcRenderer.invoke(IPC.DOCUMENTS.GET_ATTACHMENT_FILE, id, attachmentId),
@@ -40,5 +49,10 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
     register: (dto) => electron.ipcRenderer.invoke(AUTH_CHANNELS.REGISTER, dto),
     logout: () => electron.ipcRenderer.invoke(AUTH_CHANNELS.LOGOUT),
     getCurrentUser: () => electron.ipcRenderer.invoke(AUTH_CHANNELS.GET_CURRENT_USER)
+  },
+  approval: {
+    submit: (id, actor, comment) => electron.ipcRenderer.invoke(IPC.APPROVAL.SUBMIT, id, actor, comment),
+    approve: (id, actor, comment) => electron.ipcRenderer.invoke(IPC.APPROVAL.APPROVE, id, actor, comment),
+    reject: (id, actor, comment) => electron.ipcRenderer.invoke(IPC.APPROVAL.REJECT, id, actor, comment)
   }
 });

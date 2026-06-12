@@ -1,0 +1,1 @@
+ALTER TABLE `documents` ADD `source_version_id` text;

@@ -1,5 +1,7 @@
 import {
   AddDocumentAttachmentDto,
+  ApprovalActor,
+  ApprovalResult,
   AuthResponse,
   CurrentUser,
   Document,
@@ -45,6 +47,11 @@ declare global {
         register: (dto: RegisterDTO) => Promise<AuthResponse | ApiErrorResponse>;
         logout: () => Promise<void>;
         getCurrentUser: () => Promise<CurrentUser | null | ApiErrorResponse>;
+      };
+      approval: {
+        submit(id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult>;
+        approve(id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult>;
+        reject(id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult>;
       };
     };
   }

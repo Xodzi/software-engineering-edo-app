@@ -6,7 +6,7 @@ import { app, ipcMain, BrowserWindow } from "electron";
 import { fileURLToPath } from "node:url";
 import path$1 from "node:path";
 import Client from "better-sqlite3";
-import crypto$1 from "node:crypto";
+import crypto$1, { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "path";
 import crypto$2 from "crypto";
@@ -16,14 +16,21 @@ const IPC = {
     GET_ALL: "documents:getAll",
     GET_BY_ID: "documents:getById",
     CREATE: "documents:create",
+    CREATE_FROM_VERSION: "documents:createFromVersion",
     UPDATE: "documents:update",
     RESTORE_VERSION: "documents:restoreVersion",
     DELETE: "documents:delete",
     GET_VERSIONS: "documents:getVersions",
+    CHECK_VERSION_INTEGRITY: "documents:checkVersionIntegrity",
     GET_ATTACHMENTS: "documents:getAttachments",
     ADD_ATTACHMENT: "documents:addAttachment",
     GET_ATTACHMENT_FILE: "documents:getAttachmentFile",
     DELETE_ATTACHMENT: "documents:deleteAttachment"
+  },
+  APPROVAL: {
+    SUBMIT: "approval:submit",
+    APPROVE: "approval:approve",
+    REJECT: "approval:reject"
   }
 };
 const AUTH_CHANNELS = {
@@ -47,6 +54,10 @@ class DocumentService {
   createDocument(dto) {
     this.validateTitle(dto.title);
     return this.repository.create(dto);
+  }
+  createDocumentFromVersion(dto) {
+    this.validateTitle(dto.title);
+    return this.repository.createFromVersion(dto);
   }
   updateDocument(id, dto) {
     const existing = this.getDocumentById(id);
@@ -82,9 +93,147 @@ class DocumentService {
     this.getDocumentById(id);
     return this.repository.findVersions(id);
   }
+  checkVersionHistoryIntegrity(id) {
+    this.getDocumentById(id);
+    return this.repository.checkVersionHistoryIntegrity(id);
+  }
   validateTitle(title) {
     if (!title.trim()) throw new Error("Title cannot be empty");
     if (title.length > 255) throw new Error("Title must be 255 characters or fewer");
+  }
+}
+const APPROVAL_TRANSITIONS = {
+  SUBMIT: { from: ["DRAFT"], to: "PENDING" },
+  APPROVE: { from: ["PENDING"], to: "APPROVED" },
+  REJECT: { from: ["PENDING"], to: "REJECTED" }
+};
+const REVIEW_ROLES = ["MANAGER", "ADMINISTRATOR"];
+class ApprovalService {
+  constructor(repository) {
+    this.repository = repository;
+  }
+  submitForApproval(documentId, actor, commentText) {
+    return this.performTransition(documentId, actor, "SUBMIT", commentText);
+  }
+  approveDocument(documentId, actor, commentText) {
+    this.ensureReviewerRole(actor);
+    return this.performTransition(documentId, actor, "APPROVE", commentText);
+  }
+  rejectDocument(documentId, actor, commentText) {
+    this.ensureReviewerRole(actor);
+    return this.performTransition(documentId, actor, "REJECT", commentText);
+  }
+  performTransition(documentId, actor, action, commentText) {
+    const document = this.getExistingDocument(documentId);
+    const transition = APPROVAL_TRANSITIONS[action];
+    this.ensureTransitionAllowed(document.status, action);
+    const comment = this.buildComment(actor, commentText);
+    const changeNote = this.buildChangeNote(action, actor, comment);
+    const updatedDocument = this.repository.updateStatus(
+      documentId,
+      transition.to,
+      changeNote
+    );
+    return {
+      document: updatedDocument,
+      action,
+      previousStatus: document.status,
+      nextStatus: transition.to,
+      comment
+    };
+  }
+  getExistingDocument(documentId) {
+    const document = this.repository.findById(documentId);
+    if (!document) {
+      throw new Error(`Document not found: ${documentId}`);
+    }
+    return document;
+  }
+  ensureTransitionAllowed(currentStatus, action) {
+    const transition = APPROVAL_TRANSITIONS[action];
+    if (!transition.from.includes(currentStatus)) {
+      throw new Error(
+        `Approval action ${action} is not allowed for document status ${currentStatus}`
+      );
+    }
+  }
+  ensureReviewerRole(actor) {
+    if (!REVIEW_ROLES.includes(actor.role)) {
+      throw new Error("Only MANAGER or ADMINISTRATOR can approve or reject documents");
+    }
+  }
+  buildComment(actor, commentText) {
+    const text2 = commentText == null ? void 0 : commentText.trim();
+    if (!text2) return void 0;
+    return {
+      text: text2,
+      authorId: actor.id,
+      authorName: actor.name,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  buildChangeNote(action, actor, comment) {
+    const transition = APPROVAL_TRANSITIONS[action];
+    const actionLabel = this.getActionLabel(action);
+    const baseNote = `${actionLabel}: ${transition.to}. Пользователь: ${actor.name}`;
+    return comment ? `${baseNote}. Комментарий: ${comment.text}` : baseNote;
+  }
+  getActionLabel(action) {
+    const labels = {
+      SUBMIT: "Документ отправлен на согласование",
+      APPROVE: "Документ утвержден",
+      REJECT: "Документ отклонен"
+    };
+    return labels[action];
+  }
+}
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+class FileStorageService {
+  constructor(repository) {
+    this.repository = repository;
+  }
+  getAttachments(documentId) {
+    this.ensureDocumentExists(documentId);
+    return this.repository.findAttachments(documentId);
+  }
+  addAttachment(documentId, dto) {
+    const document = this.ensureDocumentExists(documentId);
+    if (document.status !== "DRAFT") {
+      throw new Error("Files can be changed only for DRAFT documents");
+    }
+    this.validateAttachment(dto);
+    return this.repository.addAttachment(documentId, dto);
+  }
+  getAttachmentFile(documentId, attachmentId) {
+    this.ensureDocumentExists(documentId);
+    const attachment = this.repository.getAttachmentFile(documentId, attachmentId);
+    if (!attachment) {
+      throw new Error(`Attachment not found: ${attachmentId}`);
+    }
+    return attachment;
+  }
+  deleteAttachment(documentId, attachmentId) {
+    const document = this.ensureDocumentExists(documentId);
+    if (document.status !== "DRAFT") {
+      throw new Error("Files can be changed only for DRAFT documents");
+    }
+    this.repository.deleteAttachment(documentId, attachmentId);
+  }
+  ensureDocumentExists(documentId) {
+    const document = this.repository.findById(documentId);
+    if (!document) throw new Error(`Document not found: ${documentId}`);
+    return document;
+  }
+  validateAttachment(dto) {
+    if (!dto.fileName.trim()) {
+      throw new Error("File name cannot be empty");
+    }
+    if (dto.size <= 0 || dto.data.byteLength <= 0) {
+      throw new Error("File cannot be empty");
+    }
+    if (dto.size > MAX_ATTACHMENT_SIZE || dto.data.byteLength > MAX_ATTACHMENT_SIZE) {
+      throw new Error("File size must be 10 MB or less");
+    }
   }
 }
 const entityKind = Symbol.for("drizzle:entityKind");
@@ -5044,6 +5193,8 @@ const documents = sqliteTable("documents", {
   authorId: text("author_id").notNull(),
   authorName: text("author_name").notNull(),
   currentVersionId: text("current_version_id"),
+  sourceVersionId: text("source_version_id"),
+  versionHistoryHash: text("version_history_hash"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
   deletedAt: text("deleted_at")
@@ -5059,6 +5210,8 @@ const documentVersions = sqliteTable("document_versions", {
   authorId: text("author_id").notNull(),
   authorName: text("author_name").notNull(),
   changeNote: text("change_note").notNull().default(""),
+  contentHash: text("content_hash").notNull().default(""),
+  historyHash: text("history_hash").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`)
 }, (table) => [
   index("idx_versions_document_id").on(table.documentId),
@@ -5153,6 +5306,8 @@ function seedDatabase(db2) {
       authorId: "seed",
       authorName: "System",
       currentVersionId: null,
+      sourceVersionId: null,
+      versionHistoryHash: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null
@@ -5166,6 +5321,8 @@ function seedDatabase(db2) {
       authorId: "seed",
       authorName: "System",
       currentVersionId: null,
+      sourceVersionId: null,
+      versionHistoryHash: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null
@@ -5176,7 +5333,7 @@ function seedDatabase(db2) {
 let db = null;
 function initDatabase() {
   if (db) return db;
-  const dbPath = path.join(app.getPath("userData"), "sed_documents3.db");
+  const dbPath = path.join(app.getPath("userData"), "sed_documents4.db");
   const sqlite = new Client(dbPath);
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("journal_mode = WAL");
@@ -5194,6 +5351,29 @@ function closeDatabase() {
     db = null;
   }
 }
+const HASH_VERSION = "v1";
+function sha256(value) {
+  return createHash("sha256").update(`${HASH_VERSION}:${value}`, "utf8").digest("hex");
+}
+function hashVersionContent(content) {
+  return sha256(`content:${content}`);
+}
+function hashVersionHistory(row, previousHistoryHash) {
+  return sha256(
+    JSON.stringify({
+      version: HASH_VERSION,
+      id: row.id,
+      documentId: row.documentId,
+      versionNumber: row.versionNumber,
+      contentHash: row.contentHash,
+      authorId: row.authorId,
+      authorName: row.authorName,
+      changeNote: row.changeNote,
+      createdAt: row.createdAt,
+      previousHistoryHash
+    })
+  );
+}
 function toDocument(dbDoc) {
   return {
     id: dbDoc.id,
@@ -5202,6 +5382,7 @@ function toDocument(dbDoc) {
     status: dbDoc.status,
     authorId: dbDoc.authorId,
     authorName: dbDoc.authorName,
+    sourceVersionId: dbDoc.sourceVersionId,
     createdAt: dbDoc.createdAt,
     updatedAt: dbDoc.updatedAt
   };
@@ -5215,7 +5396,9 @@ function toVersion(dbVer) {
     authorId: dbVer.authorId,
     authorName: dbVer.authorName,
     createdAt: dbVer.createdAt,
-    changeNote: dbVer.changeNote
+    changeNote: dbVer.changeNote,
+    contentHash: dbVer.contentHash,
+    historyHash: dbVer.historyHash
   };
 }
 function toAttachment(dbAttachment) {
@@ -5238,6 +5421,102 @@ class DocumentRepository {
   constructor(db2) {
     this.db = db2;
   }
+  checkVersionHistoryIntegrity(documentId) {
+    const rows = this.selectVersionsOrderedAsc(documentId);
+    if (rows.length === 0) {
+      return { isValid: true, violations: [] };
+    }
+    const violations = [];
+    const storedHead = this.getCurrentVersionHistoryHash(documentId);
+    let expectedPreviousHistoryHash = null;
+    for (const row of rows) {
+      const expectedContentHash = hashVersionContent(row.content);
+      const expectedHistoryHash = hashVersionHistory(
+        {
+          ...row,
+          contentHash: expectedContentHash
+        },
+        expectedPreviousHistoryHash
+      );
+      if (!row.contentHash || !row.historyHash) {
+        violations.push({
+          versionNumber: row.versionNumber,
+          reason: "missing_hash",
+          message: `Версия v${row.versionNumber} не имеет контрольной суммы.`
+        });
+      } else {
+        if (row.contentHash !== expectedContentHash) {
+          violations.push({
+            versionNumber: row.versionNumber,
+            reason: "content_hash_mismatch",
+            message: `Версия v${row.versionNumber}: содержимое не совпадает с контрольной суммой.`
+          });
+        }
+        if (row.historyHash !== expectedHistoryHash) {
+          violations.push({
+            versionNumber: row.versionNumber,
+            reason: "history_hash_mismatch",
+            message: `Версия v${row.versionNumber}: цепочка истории изменена.`
+          });
+        }
+      }
+      expectedPreviousHistoryHash = expectedHistoryHash;
+    }
+    if (storedHead === null) {
+      violations.push({
+        versionNumber: rows[rows.length - 1].versionNumber,
+        reason: "history_chain_mismatch",
+        message: "Документ не хранит контрольную сумму последней версии истории."
+      });
+    } else if (storedHead !== expectedPreviousHistoryHash) {
+      violations.push({
+        versionNumber: rows[rows.length - 1].versionNumber,
+        reason: "history_chain_mismatch",
+        message: "Последняя контрольная сумма истории не совпадает с записью документа."
+      });
+    }
+    return {
+      isValid: violations.length === 0,
+      violations
+    };
+  }
+  createVersionValues(params) {
+    const contentHash = hashVersionContent(params.content);
+    const previousHistoryHash = this.getCurrentVersionHistoryHash(params.documentId);
+    const historyHash = hashVersionHistory(
+      {
+        id: params.id,
+        documentId: params.documentId,
+        versionNumber: params.versionNumber,
+        authorId: params.authorId,
+        authorName: params.authorName,
+        changeNote: params.changeNote,
+        createdAt: params.createdAt,
+        contentHash
+      },
+      previousHistoryHash
+    );
+    return {
+      ...params,
+      contentHash,
+      historyHash
+    };
+  }
+  getCurrentVersionHistoryHash(documentId) {
+    const row = this.db.select({ versionHistoryHash: documents.versionHistoryHash }).from(documents).where(eq(documents.id, documentId)).get();
+    return (row == null ? void 0 : row.versionHistoryHash) ?? null;
+  }
+  selectVersionsOrderedAsc(documentId) {
+    return this.db.select().from(documentVersions).where(eq(documentVersions.documentId, documentId)).orderBy(documentVersions.versionNumber).all();
+  }
+  getSourceVersion(documentId, versionId) {
+    return this.db.select().from(documentVersions).where(
+      and(
+        eq(documentVersions.documentId, documentId),
+        eq(documentVersions.id, versionId)
+      )
+    ).get();
+  }
   findAll() {
     const rows = this.db.select().from(documents).where(isNull(documents.deletedAt)).orderBy(desc(documents.updatedAt)).all();
     return rows.map(toDocument);
@@ -5256,6 +5535,31 @@ class DocumentRepository {
       authorId: dto.authorId,
       authorName: dto.authorName,
       currentVersionId: null,
+      sourceVersionId: null,
+      versionHistoryHash: null,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null
+    };
+    this.db.insert(documents).values(newDoc).run();
+    return toDocument(newDoc);
+  }
+  createFromVersion(dto) {
+    const sourceVersion = this.getSourceVersion(dto.sourceDocumentId, dto.sourceVersionId);
+    if (!sourceVersion) {
+      throw new Error(`Source version not found: ${dto.sourceVersionId}`);
+    }
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const newDoc = {
+      id: v4(),
+      title: dto.title,
+      content: dto.content,
+      status: "DRAFT",
+      authorId: dto.authorId,
+      authorName: dto.authorName,
+      currentVersionId: null,
+      sourceVersionId: sourceVersion.id,
+      versionHistoryHash: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null
@@ -5270,7 +5574,7 @@ class DocumentRepository {
     const nextVersion = this.getNextVersionNumber(id);
     this.db.transaction((tx) => {
       const versionId = v4();
-      tx.insert(documentVersions).values({
+      const versionValues = this.createVersionValues({
         id: versionId,
         documentId: id,
         versionNumber: nextVersion,
@@ -5279,10 +5583,13 @@ class DocumentRepository {
         authorName: existing.authorName,
         changeNote: dto.changeNote,
         createdAt: now
-      }).run();
+      });
+      tx.insert(documentVersions).values(versionValues).run();
+      const historyHash = versionValues.historyHash;
       const updates = {
         updatedAt: now,
-        currentVersionId: versionId
+        currentVersionId: versionId,
+        versionHistoryHash: historyHash
       };
       if (dto.title !== void 0) updates.title = dto.title;
       if (dto.content !== void 0) updates.content = dto.content;
@@ -5297,7 +5604,7 @@ class DocumentRepository {
     const nextVersion = this.getNextVersionNumber(id);
     this.db.transaction((tx) => {
       const versionId = v4();
-      tx.insert(documentVersions).values({
+      const versionValues = this.createVersionValues({
         id: versionId,
         documentId: id,
         versionNumber: nextVersion,
@@ -5306,8 +5613,9 @@ class DocumentRepository {
         authorName: existing.authorName,
         changeNote,
         createdAt: now
-      }).run();
-      tx.update(documents).set({ status, updatedAt: now, currentVersionId: versionId }).where(eq(documents.id, id)).run();
+      });
+      tx.insert(documentVersions).values(versionValues).run();
+      tx.update(documents).set({ status, updatedAt: now, currentVersionId: versionId, versionHistoryHash: versionValues.historyHash }).where(eq(documents.id, id)).run();
     });
     return this.findById(id);
   }
@@ -5322,7 +5630,7 @@ class DocumentRepository {
     const nextVersion = this.getNextVersionNumber(id);
     this.db.transaction((tx) => {
       const versionId = v4();
-      tx.insert(documentVersions).values({
+      const versionValues = this.createVersionValues({
         id: versionId,
         documentId: id,
         versionNumber: nextVersion,
@@ -5331,11 +5639,13 @@ class DocumentRepository {
         authorName: existing.authorName,
         changeNote,
         createdAt: now
-      }).run();
+      });
+      tx.insert(documentVersions).values(versionValues).run();
       tx.update(documents).set({
         content: version.content,
         updatedAt: now,
-        currentVersionId: versionId
+        currentVersionId: versionId,
+        versionHistoryHash: versionValues.historyHash
       }).where(eq(documents.id, id)).run();
     });
     return this.findById(id);
@@ -7263,55 +7573,6 @@ function registerAuthHandlers(db2) {
   handleWithError(AUTH_CHANNELS.LOGOUT, () => authService.logout());
   handleWithError(AUTH_CHANNELS.GET_CURRENT_USER, () => authService.getCurrentUser());
 }
-const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
-class FileStorageService {
-  constructor(repository) {
-    this.repository = repository;
-  }
-  getAttachments(documentId) {
-    this.ensureDocumentExists(documentId);
-    return this.repository.findAttachments(documentId);
-  }
-  addAttachment(documentId, dto) {
-    const document = this.ensureDocumentExists(documentId);
-    if (document.status !== "DRAFT") {
-      throw new Error("Files can be changed only for DRAFT documents");
-    }
-    this.validateAttachment(dto);
-    return this.repository.addAttachment(documentId, dto);
-  }
-  getAttachmentFile(documentId, attachmentId) {
-    this.ensureDocumentExists(documentId);
-    const attachment = this.repository.getAttachmentFile(documentId, attachmentId);
-    if (!attachment) {
-      throw new Error(`Attachment not found: ${attachmentId}`);
-    }
-    return attachment;
-  }
-  deleteAttachment(documentId, attachmentId) {
-    const document = this.ensureDocumentExists(documentId);
-    if (document.status !== "DRAFT") {
-      throw new Error("Files can be changed only for DRAFT documents");
-    }
-    this.repository.deleteAttachment(documentId, attachmentId);
-  }
-  ensureDocumentExists(documentId) {
-    const document = this.repository.findById(documentId);
-    if (!document) throw new Error(`Document not found: ${documentId}`);
-    return document;
-  }
-  validateAttachment(dto) {
-    if (!dto.fileName.trim()) {
-      throw new Error("File name cannot be empty");
-    }
-    if (dto.size <= 0 || dto.data.byteLength <= 0) {
-      throw new Error("File cannot be empty");
-    }
-    if (dto.size > MAX_ATTACHMENT_SIZE || dto.data.byteLength > MAX_ATTACHMENT_SIZE) {
-      throw new Error("File size must be 10 MB or less");
-    }
-  }
-}
 const __filename$1 = fileURLToPath(import.meta.url);
 const __dirname$1 = path$1.dirname(__filename$1);
 process.env.APP_ROOT = path$1.join(__dirname$1, "..");
@@ -7343,6 +7604,7 @@ async function registerIpcHandlers() {
   const repository = new DocumentRepository(db2);
   const service = new DocumentService(repository);
   const fileStorageService = new FileStorageService(repository);
+  const approvalService = new ApprovalService(repository);
   ipcMain.handle(IPC.DOCUMENTS.GET_ALL, () => service.getAllDocuments());
   ipcMain.handle(
     IPC.DOCUMENTS.GET_BY_ID,
@@ -7351,6 +7613,10 @@ async function registerIpcHandlers() {
   ipcMain.handle(
     IPC.DOCUMENTS.CREATE,
     (_, dto) => service.createDocument(dto)
+  );
+  ipcMain.handle(
+    IPC.DOCUMENTS.CREATE_FROM_VERSION,
+    (_, dto) => service.createDocumentFromVersion(dto)
   );
   ipcMain.handle(
     IPC.DOCUMENTS.UPDATE,
@@ -7369,6 +7635,10 @@ async function registerIpcHandlers() {
     (_, id) => service.getDocumentVersions(id)
   );
   ipcMain.handle(
+    IPC.DOCUMENTS.CHECK_VERSION_INTEGRITY,
+    (_, id) => service.checkVersionHistoryIntegrity(id)
+  );
+  ipcMain.handle(
     IPC.DOCUMENTS.GET_ATTACHMENTS,
     (_, id) => fileStorageService.getAttachments(id)
   );
@@ -7383,6 +7653,18 @@ async function registerIpcHandlers() {
   ipcMain.handle(
     IPC.DOCUMENTS.DELETE_ATTACHMENT,
     (_, id, attachmentId) => fileStorageService.deleteAttachment(id, attachmentId)
+  );
+  ipcMain.handle(
+    IPC.APPROVAL.SUBMIT,
+    (_, id, actor, comment) => approvalService.submitForApproval(id, actor, comment)
+  );
+  ipcMain.handle(
+    IPC.APPROVAL.APPROVE,
+    (_, id, actor, comment) => approvalService.approveDocument(id, actor, comment)
+  );
+  ipcMain.handle(
+    IPC.APPROVAL.REJECT,
+    (_, id, actor, comment) => approvalService.rejectDocument(id, actor, comment)
   );
   registerAuthHandlers(db2);
 }

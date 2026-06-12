@@ -84,6 +84,57 @@ export const DocumentDetailPageView = observer(function DocumentDetailPageView({
             Назад к списку
           </button>
 
+          {(controller.isDraft || controller.isPending) && (
+            <div className="document-actions">
+              <label className="form-field">
+                <span>Роль для согласования</span>
+                <select
+                  value={controller.approvalRole}
+                  onChange={(event) =>
+                    controller.setApprovalRole(event.target.value as typeof controller.approvalRole)
+                  }
+                  disabled={controller.approvalInProgress}
+                >
+                  <option value="EMPLOYEE">Сотрудник</option>
+                  <option value="MANAGER">Руководитель</option>
+                  <option value="ADMINISTRATOR">Администратор</option>
+                </select>
+              </label>
+
+              {controller.isDraft && (
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={controller.approvalInProgress}
+                  onClick={() => void controller.submitForApproval()}
+                >
+                  Отправить на согласование
+                </button>
+              )}
+
+              {controller.isPending && (
+                <>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    disabled={controller.approvalInProgress}
+                    onClick={() => void controller.approveDocument()}
+                  >
+                    Утвердить
+                  </button>
+                  <button
+                    className="danger-button"
+                    type="button"
+                    disabled={controller.approvalInProgress}
+                    onClick={() => controller.rejectDocument()}
+                  >
+                    Отклонить
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
           {controller.isDraft && (
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
@@ -103,6 +154,44 @@ export const DocumentDetailPageView = observer(function DocumentDetailPageView({
             </div>
           )}
         </div>
+
+        {controller.approvalError && (
+          <div className="page-state page-state--error">
+            Ошибка согласования: {controller.approvalError}
+          </div>
+        )}
+
+        {controller.isRejectDialogOpen && (
+          <div className="surface-panel">
+            <label className="form-field">
+              <span>Причина отклонения</span>
+              <textarea
+                value={controller.rejectComment}
+                onChange={(event) => controller.setRejectComment(event.target.value)}
+                disabled={controller.approvalInProgress}
+                placeholder="Комментарий можно оставить пустым"
+              />
+            </label>
+            <div className="document-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={controller.approvalInProgress}
+                onClick={() => controller.cancelRejectDocument()}
+              >
+                Отмена
+              </button>
+              <button
+                className="danger-button"
+                type="button"
+                disabled={controller.approvalInProgress}
+                onClick={() => void controller.confirmRejectDocument()}
+              >
+                Подтвердить отклонение
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-12">

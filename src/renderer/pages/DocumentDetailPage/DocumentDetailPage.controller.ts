@@ -7,6 +7,7 @@ import {
   DocumentVersionIntegrity,
   CreateDocumentDto,
   UpdateDocumentDto,
+  UserRole,
 } from '@shared/types';
 import { documentRepository } from '../../repositories/DocumentRepository';
 import { routerController } from '../../controllers/RouterController';
@@ -27,6 +28,11 @@ export class DocumentDetailPageController {
   createFromVersionSourceVersion: DocumentVersion | null = null;
   uploadingAttachment = false;
   attachmentError: string | null = null;
+  approvalRole: UserRole = 'MANAGER';
+  approvalInProgress = false;
+  approvalError: string | null = null;
+  isRejectDialogOpen = false;
+  rejectComment = '';
 
   private documentId: string;
 
@@ -37,6 +43,10 @@ export class DocumentDetailPageController {
 
   get isDraft(): boolean {
     return this.document?.status === 'DRAFT';
+  }
+
+  get isPending(): boolean {
+    return this.document?.status === 'PENDING';
   }
 
   async loadDocumentData(): Promise<void> {
@@ -174,6 +184,61 @@ export class DocumentDetailPageController {
     }
   }
 
+  async submitForApproval(): Promise<void> {
+    await this.runApprovalAction((comment) =>
+      documentRepository.submitForApproval(
+        this.documentId,
+        this.buildApprovalActor(),
+        comment,
+      ),
+    );
+  }
+
+  async approveDocument(): Promise<void> {
+    await this.runApprovalAction((comment) =>
+      documentRepository.approveDocument(
+        this.documentId,
+        this.buildApprovalActor(),
+        comment,
+      ),
+    );
+  }
+
+  rejectDocument(): void {
+    if (!this.isPending) {
+      this.setApprovalError('Отклонение доступно только для документа на согласовании.');
+      return;
+    }
+
+    this.setApprovalError(null);
+    this.rejectComment = '';
+    this.isRejectDialogOpen = true;
+  }
+
+  async confirmRejectDocument(): Promise<void> {
+    await this.runApprovalAction(() =>
+      documentRepository.rejectDocument(
+        this.documentId,
+        this.buildApprovalActor(),
+        this.rejectComment.trim() || undefined,
+      ),
+    );
+  }
+
+  setApprovalRole(role: UserRole): void {
+    this.approvalRole = role;
+    this.setApprovalError(null);
+  }
+
+  setRejectComment(comment: string): void {
+    this.rejectComment = comment;
+  }
+
+  cancelRejectDocument(): void {
+    this.isRejectDialogOpen = false;
+    this.rejectComment = '';
+  }
+
   openEditDialog(): void {
     this.isEditDialogOpen = true;
   }
@@ -225,8 +290,52 @@ export class DocumentDetailPageController {
     return copy.buffer as ArrayBuffer;
   }
 
+  private setApprovalError(error: string | null): void {
+    this.approvalError = error;
+  }
+
+  private setApprovalInProgress(value: boolean): void {
+    this.approvalInProgress = value;
+  }
+
+  private async runApprovalAction(
+    action: (comment?: string) => Promise<unknown>,
+  ): Promise<void> {
+    this.setApprovalInProgress(true);
+    this.setApprovalError(null);
+
+    try {
+      await action();
+      this.cancelRejectDocument();
+      await this.loadDocumentData();
+    } catch (err) {
+      this.setApprovalError(this.extractErrorMessage(err));
+    } finally {
+      this.setApprovalInProgress(false);
+    }
+  }
+
+  private buildApprovalActor() {
+    return {
+      id: 'current-user',
+      name: 'Текущий пользователь',
+      role: this.approvalRole,
+    };
+  }
+
   private extractErrorMessage(err: unknown): string {
-    return err instanceof Error ? err.message : 'Неизвестная ошибка';
+    if (!(err instanceof Error)) return 'Неизвестная ошибка';
+
+    const message = err.message.replace(/^Error invoking remote method '[^']+':\s*/, '');
+    if (
+      message.includes(
+        'UNIQUE constraint failed: document_versions.document_id, document_versions.version_number',
+      )
+    ) {
+      return 'Не удалось записать историю изменения статуса: номер версии уже существует.';
+    }
+
+    return message;
   }
 
   private formatVersionIntegrityWarning(

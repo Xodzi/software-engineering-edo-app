@@ -12,7 +12,7 @@ import { RegisterPageView } from './renderer/pages/RegisterPage/RegisterPage.vie
 import './renderer/pages/RegisterPage/RegisterPage.view.css';
 import './App.css';
 
-function App() {
+function AppView() {
   const { user, isLoading, login, register } = useAuth();
   const registerController = useLocalObservable(
     () =>
@@ -63,4 +63,6 @@ function App() {
   );
 }
 
-export default observer(App);
+const App = observer(AppView);
+
+export default App;

@@ -1,6 +1,8 @@
 import { BaseRepository } from '../bases/BaseRepository';
 import {
   AddDocumentAttachmentDto,
+  ApprovalActor,
+  ApprovalResult,
   Document,
   DocumentAttachment,
   DocumentAttachmentFile,
@@ -68,6 +70,30 @@ export class DocumentRepository extends BaseRepository<Document> {
 
   async deleteAttachment(documentId: string, attachmentId: string): Promise<void> {
     return window.electronAPI.documents.deleteAttachment(documentId, attachmentId);
+  }
+
+  async submitForApproval(
+    documentId: string,
+    actor: ApprovalActor,
+    comment?: string,
+  ): Promise<ApprovalResult> {
+    return window.electronAPI.approval.submit(documentId, actor, comment);
+  }
+
+  async approveDocument(
+    documentId: string,
+    actor: ApprovalActor,
+    comment?: string,
+  ): Promise<ApprovalResult> {
+    return window.electronAPI.approval.approve(documentId, actor, comment);
+  }
+
+  async rejectDocument(
+    documentId: string,
+    actor: ApprovalActor,
+    comment?: string,
+  ): Promise<ApprovalResult> {
+    return window.electronAPI.approval.reject(documentId, actor, comment);
   }
 }
 
