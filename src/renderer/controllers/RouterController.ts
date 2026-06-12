@@ -34,6 +34,8 @@ export class RouterController {
   navigateToDetail(id: string): void {
     window.location.hash = `/document/${id}`;
   }
+
+  
 }
 
 export const routerController = new RouterController();

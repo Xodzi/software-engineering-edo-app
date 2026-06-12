@@ -1,5 +1,4 @@
 import { makeAutoObservable } from 'mobx';
-import { authService } from '../../../../src/main/services/AuthService';
 import { routerController } from '../../controllers/RouterController';
 
 export class LoginPageController {
@@ -7,6 +6,7 @@ export class LoginPageController {
   password = '';
   loading = false;
   error: string | null = null;
+
 
   constructor() {
     makeAutoObservable(this);
@@ -38,9 +38,11 @@ export class LoginPageController {
     this.clearError();
 
     try {
-      await authService.login(this.email, this.password);
-      // После успешного входа перенаправляем на главную
-      routerController.navigateToHome();
+      const result = await window.electronAPI.auth.login({
+        email: this.email,
+        password: this.password
+      });          
+      routerController.navigateToList();
     } catch (err) {
       this.setError(this.extractErrorMessage(err));
     } finally {

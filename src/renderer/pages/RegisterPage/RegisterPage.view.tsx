@@ -27,6 +27,7 @@ export const RegisterPageView = observer(function RegisterPageView({
               placeholder="Иван Иванов"
               disabled={controller.loading}
               autoComplete="name"
+              className={controller.name && !controller.loading ? 'has-value' : ''}
             />
           </div>
 
@@ -40,6 +41,7 @@ export const RegisterPageView = observer(function RegisterPageView({
               placeholder="ivan@example.com"
               disabled={controller.loading}
               autoComplete="email"
+              className={controller.email && !controller.loading ? 'has-value' : ''}
             />
           </div>
 
@@ -53,7 +55,14 @@ export const RegisterPageView = observer(function RegisterPageView({
               placeholder="••••••••"
               disabled={controller.loading}
               autoComplete="new-password"
+              className={controller.password ? 'has-value' : ''}
             />
+            {controller.password && controller.password.length < 6 && (
+              <div className="field-error hint">
+                <span className="hint-icon">ℹ️</span>
+                Пароль должен быть не менее 6 символов
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -66,9 +75,13 @@ export const RegisterPageView = observer(function RegisterPageView({
               placeholder="••••••••"
               disabled={controller.loading}
               autoComplete="new-password"
+              className={controller.passwordMismatch ? 'error' : controller.confirmPassword ? 'has-value' : ''}
             />
             {controller.passwordMismatch && (
-              <div className="field-error">Пароли не совпадают</div>
+              <div className="field-error">
+                <span className="error-icon-small">⚠️</span>
+                Пароли не совпадают
+              </div>
             )}
           </div>
 
@@ -80,6 +93,7 @@ export const RegisterPageView = observer(function RegisterPageView({
                 type="button"
                 className="error-close"
                 onClick={() => controller.clearError()}
+                aria-label="Закрыть"
               >
                 ×
               </button>

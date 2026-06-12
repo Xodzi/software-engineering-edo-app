@@ -1,5 +1,6 @@
 import { observer } from 'mobx-react-lite';
 import { LoginPageController } from './LoginPage.controller';
+import './LoginPage.css'; // Импортируем стили
 
 interface LoginPageViewProps {
   controller: LoginPageController;
@@ -51,6 +52,7 @@ export const LoginPageView = observer(function LoginPageView({
                 type="button"
                 className="error-close"
                 onClick={() => controller.clearError()}
+                aria-label="Закрыть"
               >
                 ×
               </button>
