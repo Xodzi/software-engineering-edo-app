@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "autoprefixer": "^10.5.0",
-    "drizzle-orm": "^0.45.2",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",
+    "drizzle-orm": "^0.45.2",
     "mobx": "^6.15.3",
     "mobx-react-lite": "^4.1.1",
     "postcss": "^8.5.15",

@@ -6,7 +6,7 @@ import { app, ipcMain, BrowserWindow } from "electron";
 import { fileURLToPath } from "node:url";
 import path$1 from "node:path";
 import Client from "better-sqlite3";
-import crypto$1, { createHash } from "node:crypto";
+import crypto$1 from "node:crypto";
 import fs from "node:fs";
 import path from "path";
 import crypto$2 from "crypto";
@@ -20,7 +20,6 @@ const IPC = {
     RESTORE_VERSION: "documents:restoreVersion",
     DELETE: "documents:delete",
     GET_VERSIONS: "documents:getVersions",
-    CHECK_VERSION_INTEGRITY: "documents:checkVersionIntegrity",
     GET_ATTACHMENTS: "documents:getAttachments",
     ADD_ATTACHMENT: "documents:addAttachment",
     GET_ATTACHMENT_FILE: "documents:getAttachmentFile",
@@ -82,10 +81,6 @@ class DocumentService {
   getDocumentVersions(id) {
     this.getDocumentById(id);
     return this.repository.findVersions(id);
-  }
-  checkVersionHistoryIntegrity(id) {
-    this.getDocumentById(id);
-    return this.repository.checkVersionHistoryIntegrity(id);
   }
   validateTitle(title) {
     if (!title.trim()) throw new Error("Title cannot be empty");
@@ -5049,7 +5044,6 @@ const documents = sqliteTable("documents", {
   authorId: text("author_id").notNull(),
   authorName: text("author_name").notNull(),
   currentVersionId: text("current_version_id"),
-  versionHistoryHash: text("version_history_hash"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
   deletedAt: text("deleted_at")
@@ -5065,8 +5059,6 @@ const documentVersions = sqliteTable("document_versions", {
   authorId: text("author_id").notNull(),
   authorName: text("author_name").notNull(),
   changeNote: text("change_note").notNull().default(""),
-  contentHash: text("content_hash").notNull().default(""),
-  historyHash: text("history_hash").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`)
 }, (table) => [
   index("idx_versions_document_id").on(table.documentId),
@@ -5161,7 +5153,6 @@ function seedDatabase(db2) {
       authorId: "seed",
       authorName: "System",
       currentVersionId: null,
-      versionHistoryHash: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null
@@ -5175,7 +5166,6 @@ function seedDatabase(db2) {
       authorId: "seed",
       authorName: "System",
       currentVersionId: null,
-      versionHistoryHash: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null
@@ -5204,29 +5194,6 @@ function closeDatabase() {
     db = null;
   }
 }
-const HASH_VERSION = "v1";
-function sha256(value) {
-  return createHash("sha256").update(`${HASH_VERSION}:${value}`, "utf8").digest("hex");
-}
-function hashVersionContent(content) {
-  return sha256(`content:${content}`);
-}
-function hashVersionHistory(row, previousHistoryHash) {
-  return sha256(
-    JSON.stringify({
-      version: HASH_VERSION,
-      id: row.id,
-      documentId: row.documentId,
-      versionNumber: row.versionNumber,
-      contentHash: row.contentHash,
-      authorId: row.authorId,
-      authorName: row.authorName,
-      changeNote: row.changeNote,
-      createdAt: row.createdAt,
-      previousHistoryHash
-    })
-  );
-}
 function toDocument(dbDoc) {
   return {
     id: dbDoc.id,
@@ -5248,9 +5215,7 @@ function toVersion(dbVer) {
     authorId: dbVer.authorId,
     authorName: dbVer.authorName,
     createdAt: dbVer.createdAt,
-    changeNote: dbVer.changeNote,
-    contentHash: dbVer.contentHash,
-    historyHash: dbVer.historyHash
+    changeNote: dbVer.changeNote
   };
 }
 function toAttachment(dbAttachment) {
@@ -5273,94 +5238,6 @@ class DocumentRepository {
   constructor(db2) {
     this.db = db2;
   }
-  checkVersionHistoryIntegrity(documentId) {
-    const rows = this.selectVersionsOrderedAsc(documentId);
-    if (rows.length === 0) {
-      return { isValid: true, violations: [] };
-    }
-    const violations = [];
-    const storedHead = this.getCurrentVersionHistoryHash(documentId);
-    let expectedPreviousHistoryHash = null;
-    for (const row of rows) {
-      const expectedContentHash = hashVersionContent(row.content);
-      const expectedHistoryHash = hashVersionHistory(
-        {
-          ...row,
-          contentHash: expectedContentHash
-        },
-        expectedPreviousHistoryHash
-      );
-      if (!row.contentHash || !row.historyHash) {
-        violations.push({
-          versionNumber: row.versionNumber,
-          reason: "missing_hash",
-          message: `Версия v${row.versionNumber} не имеет контрольной суммы.`
-        });
-      } else {
-        if (row.contentHash !== expectedContentHash) {
-          violations.push({
-            versionNumber: row.versionNumber,
-            reason: "content_hash_mismatch",
-            message: `Версия v${row.versionNumber}: содержимое не совпадает с контрольной суммой.`
-          });
-        }
-        if (row.historyHash !== expectedHistoryHash) {
-          violations.push({
-            versionNumber: row.versionNumber,
-            reason: "history_hash_mismatch",
-            message: `Версия v${row.versionNumber}: цепочка истории изменена.`
-          });
-        }
-      }
-      expectedPreviousHistoryHash = expectedHistoryHash;
-    }
-    if (storedHead === null) {
-      violations.push({
-        versionNumber: rows[rows.length - 1].versionNumber,
-        reason: "history_chain_mismatch",
-        message: "Документ не хранит контрольную сумму последней версии истории."
-      });
-    } else if (storedHead !== expectedPreviousHistoryHash) {
-      violations.push({
-        versionNumber: rows[rows.length - 1].versionNumber,
-        reason: "history_chain_mismatch",
-        message: "Последняя контрольная сумма истории не совпадает с записью документа."
-      });
-    }
-    return {
-      isValid: violations.length === 0,
-      violations
-    };
-  }
-  createVersionValues(params) {
-    const contentHash = hashVersionContent(params.content);
-    const previousHistoryHash = this.getCurrentVersionHistoryHash(params.documentId);
-    const historyHash = hashVersionHistory(
-      {
-        id: params.id,
-        documentId: params.documentId,
-        versionNumber: params.versionNumber,
-        authorId: params.authorId,
-        authorName: params.authorName,
-        changeNote: params.changeNote,
-        createdAt: params.createdAt,
-        contentHash
-      },
-      previousHistoryHash
-    );
-    return {
-      ...params,
-      contentHash,
-      historyHash
-    };
-  }
-  getCurrentVersionHistoryHash(documentId) {
-    const row = this.db.select({ versionHistoryHash: documents.versionHistoryHash }).from(documents).where(eq(documents.id, documentId)).get();
-    return (row == null ? void 0 : row.versionHistoryHash) ?? null;
-  }
-  selectVersionsOrderedAsc(documentId) {
-    return this.db.select().from(documentVersions).where(eq(documentVersions.documentId, documentId)).orderBy(documentVersions.versionNumber).all();
-  }
   findAll() {
     const rows = this.db.select().from(documents).where(isNull(documents.deletedAt)).orderBy(desc(documents.updatedAt)).all();
     return rows.map(toDocument);
@@ -5379,7 +5256,6 @@ class DocumentRepository {
       authorId: dto.authorId,
       authorName: dto.authorName,
       currentVersionId: null,
-      versionHistoryHash: null,
       createdAt: now,
       updatedAt: now,
       deletedAt: null
@@ -5394,7 +5270,7 @@ class DocumentRepository {
     const nextVersion = this.getNextVersionNumber(id);
     this.db.transaction((tx) => {
       const versionId = v4();
-      const versionValues = this.createVersionValues({
+      tx.insert(documentVersions).values({
         id: versionId,
         documentId: id,
         versionNumber: nextVersion,
@@ -5403,13 +5279,10 @@ class DocumentRepository {
         authorName: existing.authorName,
         changeNote: dto.changeNote,
         createdAt: now
-      });
-      tx.insert(documentVersions).values(versionValues).run();
-      const historyHash = versionValues.historyHash;
+      }).run();
       const updates = {
         updatedAt: now,
-        currentVersionId: versionId,
-        versionHistoryHash: historyHash
+        currentVersionId: versionId
       };
       if (dto.title !== void 0) updates.title = dto.title;
       if (dto.content !== void 0) updates.content = dto.content;
@@ -5424,7 +5297,7 @@ class DocumentRepository {
     const nextVersion = this.getNextVersionNumber(id);
     this.db.transaction((tx) => {
       const versionId = v4();
-      const versionValues = this.createVersionValues({
+      tx.insert(documentVersions).values({
         id: versionId,
         documentId: id,
         versionNumber: nextVersion,
@@ -5433,9 +5306,8 @@ class DocumentRepository {
         authorName: existing.authorName,
         changeNote,
         createdAt: now
-      });
-      tx.insert(documentVersions).values(versionValues).run();
-      tx.update(documents).set({ status, updatedAt: now, currentVersionId: versionId, versionHistoryHash: versionValues.historyHash }).where(eq(documents.id, id)).run();
+      }).run();
+      tx.update(documents).set({ status, updatedAt: now, currentVersionId: versionId }).where(eq(documents.id, id)).run();
     });
     return this.findById(id);
   }
@@ -5450,7 +5322,7 @@ class DocumentRepository {
     const nextVersion = this.getNextVersionNumber(id);
     this.db.transaction((tx) => {
       const versionId = v4();
-      const versionValues = this.createVersionValues({
+      tx.insert(documentVersions).values({
         id: versionId,
         documentId: id,
         versionNumber: nextVersion,
@@ -5459,13 +5331,11 @@ class DocumentRepository {
         authorName: existing.authorName,
         changeNote,
         createdAt: now
-      });
-      tx.insert(documentVersions).values(versionValues).run();
+      }).run();
       tx.update(documents).set({
         content: version.content,
         updatedAt: now,
-        currentVersionId: versionId,
-        versionHistoryHash: versionValues.historyHash
+        currentVersionId: versionId
       }).where(eq(documents.id, id)).run();
     });
     return this.findById(id);
@@ -7497,10 +7367,6 @@ async function registerIpcHandlers() {
   ipcMain.handle(
     IPC.DOCUMENTS.GET_VERSIONS,
     (_, id) => service.getDocumentVersions(id)
-  );
-  ipcMain.handle(
-    IPC.DOCUMENTS.CHECK_VERSION_INTEGRITY,
-    (_, id) => service.checkVersionHistoryIntegrity(id)
   );
   ipcMain.handle(
     IPC.DOCUMENTS.GET_ATTACHMENTS,

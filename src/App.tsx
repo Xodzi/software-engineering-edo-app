@@ -1,19 +1,39 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect } from 'react';
-import { observer } from 'mobx-react-lite';
+import { observer, useLocalObservable } from 'mobx-react-lite';
 import { useAuth } from './renderer/features/auth/AuthContext';
 import { routerController } from './renderer/controllers/RouterController';
 import { DocumentsPage } from './renderer/pages/DocumentsPage';
 import { DocumentDetailPage } from './renderer/pages/DocumentDetailPage';
-import RegisterForm from './renderer/features/auth/RegisterForm';
+import { LoginPageController } from './renderer/pages/LoginPage/LoginPage.controller';
+import { LoginPageView } from './renderer/pages/LoginPage/LoginPage.view';
+import { RegisterPageController } from './renderer/pages/RegisterPage/RegisterPage.controller';
+import { RegisterPageView } from './renderer/pages/RegisterPage/RegisterPage.view';
+import './renderer/pages/RegisterPage/RegisterPage.view.css';
 import './App.css';
 
 function App() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, login, register } = useAuth();
+  const registerController = useLocalObservable(
+    () =>
+      new RegisterPageController({
+        register,
+        navigateToLogin: routerController.navigateToLogin,
+      }),
+  );
+  const loginController = useLocalObservable(
+    () =>
+      new LoginPageController({
+        login,
+        navigateToRegister: routerController.navigateToRegister,
+      }),
+  );
 
   useEffect(() => {
     return routerController.init();
   }, []);
+
+  const route = routerController.route;
 
   if (isLoading) {
     return <div className="app-shell">Загрузка...</div>;
@@ -23,13 +43,13 @@ function App() {
     return (
       <div className="app-shell">
         <main className="app-main">
-          <RegisterForm />
+          {route.type === 'login' && <LoginPageView controller={loginController} />}
+          {route.type === 'register' && <RegisterPageView controller={registerController} />}
+          {route.type === 'list' && <RegisterPageView controller={registerController} />}
         </main>
       </div>
     );
   }
-
-  const route = routerController.route;
 
   return (
     <div className="app-shell">
