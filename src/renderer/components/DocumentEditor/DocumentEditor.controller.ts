@@ -11,10 +11,10 @@ export class DocumentEditorController {
 
   private readonly document?: Document;
 
-  constructor(document?: Document) {
+  constructor(document?: Document, initialTitle?: string, initialContent?: string) {
     this.document = document;
-    this.title = document?.title ?? '';
-    this.content = document?.content ?? '';
+    this.title = document?.title ?? initialTitle ?? '';
+    this.content = document?.content ?? initialContent ?? '';
     makeAutoObservable(this);
   }
 

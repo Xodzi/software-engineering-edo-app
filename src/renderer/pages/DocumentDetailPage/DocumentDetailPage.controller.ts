@@ -4,6 +4,7 @@ import {
   DocumentAttachment,
   DocumentAttachmentFile,
   DocumentVersion,
+  DocumentVersionIntegrity,
   CreateDocumentDto,
   UpdateDocumentDto,
 } from '@shared/types';
@@ -16,9 +17,14 @@ export class DocumentDetailPageController {
 
   document: Document | null = null;
   versions: readonly DocumentVersion[] = [];
+  versionIntegrityWarning: string | null = null;
   attachments: readonly DocumentAttachment[] = [];
   selectedVersion: DocumentVersion | null = null;
   isEditDialogOpen = false;
+  isCreateFromVersionDialogOpen = false;
+  createFromVersionInitialTitle = '';
+  createFromVersionInitialContent = '';
+  createFromVersionSourceVersion: DocumentVersion | null = null;
   uploadingAttachment = false;
   attachmentError: string | null = null;
 
@@ -44,8 +50,10 @@ export class DocumentDetailPageController {
       }
       const loadedVersions = await documentRepository.getVersions(this.documentId);
       const loadedAttachments = await documentRepository.getAttachments(this.documentId);
+      const versionIntegrity = await documentRepository.checkVersionIntegrity(this.documentId);
       this.document = loadedDocument;
       this.versions = loadedVersions;
+      this.versionIntegrityWarning = this.formatVersionIntegrityWarning(versionIntegrity);
       this.attachments = loadedAttachments;
 
       if (this.selectedVersion) {
@@ -126,6 +134,32 @@ export class DocumentDetailPageController {
     await this.loadDocumentData();
   }
 
+  openCreateFromVersionDialog(version: DocumentVersion): void {
+    if (!this.document) return;
+
+    this.createFromVersionInitialTitle = `${this.document.title} (копия v${version.versionNumber})`;
+    this.createFromVersionInitialContent = version.content;
+    this.createFromVersionSourceVersion = version;
+    this.isCreateFromVersionDialogOpen = true;
+  }
+
+  async createDocumentFromVersion(dto: CreateDocumentDto): Promise<void> {
+    if (!this.createFromVersionSourceVersion) return;
+
+    const createdDocument = await documentRepository.createFromVersion({
+      ...dto,
+      sourceDocumentId: this.documentId,
+      sourceVersionId: this.createFromVersionSourceVersion.id,
+    });
+    this.closeCreateFromVersionDialog();
+    routerController.navigateToDetail(createdDocument.id);
+  }
+
+  closeCreateFromVersionDialog(): void {
+    this.isCreateFromVersionDialogOpen = false;
+    this.createFromVersionSourceVersion = null;
+  }
+
   async restoreDocumentVersion(versionNumber: number): Promise<void> {
     if (!this.document) return;
     if (!window.confirm(`Восстановить версию v${versionNumber} для документа "${this.document.title}"?`)) {
@@ -193,5 +227,17 @@ export class DocumentDetailPageController {
 
   private extractErrorMessage(err: unknown): string {
     return err instanceof Error ? err.message : 'Неизвестная ошибка';
+  }
+
+  private formatVersionIntegrityWarning(
+    integrity: DocumentVersionIntegrity,
+  ): string | null {
+    if (integrity.isValid) return null;
+
+    const [first] = integrity.violations;
+    if (!first) return 'Предупреждение: история версий могла быть изменена.';
+    if (integrity.violations.length === 1) return `Предупреждение: ${first.message}`;
+
+    return `Предупреждение: история версий могла быть изменена (${integrity.violations.length}). ${first.message}`;
   }
 }

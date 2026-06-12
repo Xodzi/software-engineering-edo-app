@@ -3,6 +3,7 @@ import { AUTH_CHANNELS, IPC } from '../src/shared/ipcChannels';
 import {
   AddDocumentAttachmentDto,
   CreateDocumentDto,
+  CreateDocumentFromVersionDto,
   LoginDTO,
   RegisterDTO,
   UpdateDocumentDto,
@@ -14,6 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getById: (id: string) => ipcRenderer.invoke(IPC.DOCUMENTS.GET_BY_ID, id),
     create: (dto: CreateDocumentDto) =>
       ipcRenderer.invoke(IPC.DOCUMENTS.CREATE, dto),
+    createFromVersion: (dto: CreateDocumentFromVersionDto) =>
+      ipcRenderer.invoke(IPC.DOCUMENTS.CREATE_FROM_VERSION, dto),
     update: (id: string, dto: UpdateDocumentDto) =>
       ipcRenderer.invoke(IPC.DOCUMENTS.UPDATE, id, dto),
     restoreVersion: (id: string, versionNumber: number) =>
@@ -21,6 +24,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => ipcRenderer.invoke(IPC.DOCUMENTS.DELETE, id),
     getVersions: (id: string) =>
       ipcRenderer.invoke(IPC.DOCUMENTS.GET_VERSIONS, id),
+    checkVersionIntegrity: (id: string) =>
+      ipcRenderer.invoke(IPC.DOCUMENTS.CHECK_VERSION_INTEGRITY, id),
     getAttachments: (id: string) =>
       ipcRenderer.invoke(IPC.DOCUMENTS.GET_ATTACHMENTS, id),
     addAttachment: (id: string, dto: AddDocumentAttachmentDto) =>

@@ -9,6 +9,7 @@ export interface Document {
   status: DocStatus;
   authorId: string;
   authorName: string;
+  sourceVersionId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -22,6 +23,25 @@ export interface DocumentVersion {
   authorName: string;
   createdAt: string;
   changeNote: string;
+  contentHash: string;
+  historyHash: string;
+}
+
+export type DocumentVersionIntegrityReason =
+  | 'missing_hash'
+  | 'content_hash_mismatch'
+  | 'history_hash_mismatch'
+  | 'history_chain_mismatch';
+
+export interface DocumentVersionIntegrityViolation {
+  versionNumber: number;
+  reason: DocumentVersionIntegrityReason;
+  message: string;
+}
+
+export interface DocumentVersionIntegrity {
+  isValid: boolean;
+  violations: DocumentVersionIntegrityViolation[];
 }
 
 export interface DocumentAttachment {
@@ -42,6 +62,11 @@ export interface CreateDocumentDto {
   content: string;
   authorId: string;
   authorName: string;
+}
+
+export interface CreateDocumentFromVersionDto extends CreateDocumentDto {
+  sourceDocumentId: string;
+  sourceVersionId: string;
 }
 
 export interface UpdateDocumentDto {

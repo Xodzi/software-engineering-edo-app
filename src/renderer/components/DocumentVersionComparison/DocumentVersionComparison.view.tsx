@@ -1,10 +1,12 @@
 import { observer } from 'mobx-react-lite';
 import { formatDateTime } from '@shared/utils';
+import { DocumentVersion } from '@shared/types';
 import { DocumentVersionComparisonController } from './DocumentVersionComparison.controller';
 
 interface DocumentVersionComparisonViewProps {
   controller: DocumentVersionComparisonController;
   onRestoreVersion: (versionNumber: number) => Promise<void> | void;
+  onCreateVersionDraft: (version: DocumentVersion) => void;
 }
 
 function renderLineText(text: string): string {
@@ -63,6 +65,7 @@ export const DocumentVersionComparisonView = observer(
   function DocumentVersionComparisonView({
     controller,
     onRestoreVersion,
+    onCreateVersionDraft,
   }: DocumentVersionComparisonViewProps) {
     if (!controller.currentDocument || !controller.selectedVersion) {
       return (
@@ -137,17 +140,24 @@ export const DocumentVersionComparisonView = observer(
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {canRestore && (
+                    <div className="flex flex-wrap gap-2">
+                      {canRestore && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-teal-700 to-sky-800 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-900/20 transition hover:-translate-y-0.5"
+                          onClick={() => void onRestoreVersion(selectedVersion.versionNumber)}
+                        >
+                          Восстановить версию
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-teal-700 to-sky-800 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-900/20 transition hover:-translate-y-0.5"
-                        onClick={() => void onRestoreVersion(selectedVersion.versionNumber)}
+                        className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-emerald-700 to-teal-800 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-teal-900/20 transition hover:-translate-y-0.5"
+                        onClick={() => onCreateVersionDraft(selectedVersion)}
                       >
-                        Восстановить версию
+                        Создать черновик на основе версии
                       </button>
-                    )}
-                    <button
+                      <button
                       type="button"
                       className="inline-flex items-center justify-center rounded-xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-300"
                       onClick={() => controller.closeDetails()}

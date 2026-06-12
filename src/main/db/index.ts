@@ -11,7 +11,7 @@ let db: ReturnType<typeof drizzle<typeof schema>> | null = null
 export function initDatabase() {
   if (db) return db
 
-  const dbPath = path.join(app.getPath('userData'), 'sed_documents2.db')
+  const dbPath = path.join(app.getPath('userData'), 'sed_documents3.db')
   const sqlite = new BetterSqlite3(dbPath)
   sqlite.pragma('foreign_keys = ON')
   sqlite.pragma('journal_mode = WAL')
