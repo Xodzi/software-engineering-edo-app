@@ -1,5 +1,5 @@
 /* Наследуем базовые стили от логина, но с небольшими изменениями */
-@import url('../LoginPage/LoginPage.css');
+@import url('../LoginPage/LoginPage.view.css');
 
 /* Специфичные стили для регистрации */
 .register-container {

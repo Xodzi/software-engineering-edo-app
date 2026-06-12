@@ -1,6 +1,11 @@
 import { makeAutoObservable } from 'mobx';
-import { AuthService } from '../../../../src/main/services/AuthService';
+import type { FormEvent } from 'react';
 import { routerController } from '../../controllers/RouterController';
+
+interface RegisterPageControllerOptions {
+  register: (name: string, email: string, password: string) => Promise<void>;
+  navigateToLogin: () => void;
+}
 
 export class RegisterPageController {
   name = '';
@@ -10,7 +15,7 @@ export class RegisterPageController {
   loading = false;
   error: string | null = null;
 
-  constructor() {
+  constructor(private readonly options: RegisterPageControllerOptions) {
     makeAutoObservable(this);
   }
 
@@ -47,7 +52,7 @@ export class RegisterPageController {
     this.clearError();
   }
 
-  async handleSubmit(e: React.FormEvent): Promise<void> {
+  async handleSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
 
     if (!this.isFormValid) {
@@ -63,18 +68,17 @@ export class RegisterPageController {
     this.clearError();
 
     try {
-      const result = await window.electronAPI.auth.register({
-        name:  this.name,
-        email: this.email,
-        password: this.password,
-      });  
-      // После успешной регистрации перенаправляем на главную
+      await this.options.register(this.name, this.email, this.password);
       routerController.navigateToList();
     } catch (err) {
       this.setError(this.extractErrorMessage(err));
     } finally {
       this.setLoading(false);
     }
+  }
+
+  navigateToLogin(): void {
+    this.options.navigateToLogin();
   }
 
   clearError(): void {

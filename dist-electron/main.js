@@ -5176,7 +5176,7 @@ function seedDatabase(db2) {
 let db = null;
 function initDatabase() {
   if (db) return db;
-  const dbPath = path.join(app.getPath("userData"), "sed_documents2.db");
+  const dbPath = path.join(app.getPath("userData"), "sed_documents3.db");
   const sqlite = new Client(dbPath);
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("journal_mode = WAL");

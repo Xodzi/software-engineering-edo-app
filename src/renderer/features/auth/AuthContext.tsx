@@ -50,8 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await window.electronAPI.auth.login({ email, password });
       if ('error' in result) {
-        setError(result.error.message);
-        return;
+        const message = result.error.message;
+        setError(message);
+        throw new Error(message);
       }
       setUser(result.user);
     } finally {
@@ -65,8 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await window.electronAPI.auth.register({ name, email, password });
       if ('error' in result) {
-        setError(result.error.message);
-        return;
+        const message = result.error.message;
+        setError(message);
+        throw new Error(message);
       }
       setUser(result.user);
     } finally {

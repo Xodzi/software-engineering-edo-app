@@ -1,11 +1,17 @@
 import { makeAutoObservable } from 'mobx';
 
-export type Route = { type: 'list' } | { type: 'detail'; id: string };
+export type Route = { type: 'list' } | { type: 'detail'; id: string } | { type: 'login' } | { type: 'register' };
 
 function parseRoute(hash: string): Route {
   const normalizedHash = hash.replace(/^#/, '');
   if (normalizedHash.startsWith('/document/')) {
     return { type: 'detail', id: normalizedHash.replace('/document/', '') };
+  }
+  if (normalizedHash.startsWith('/login')) {
+    return { type: 'login' };
+  }
+  if (normalizedHash.startsWith('/register')) {
+    return { type: 'register' };
   }
   return { type: 'list' };
 }
@@ -29,6 +35,14 @@ export class RouterController {
 
   navigateToList(): void {
     window.location.hash = '/';
+  }
+
+  navigateToLogin(): void {
+    window.location.hash = '/login';
+  }
+
+  navigateToRegister(): void {
+    window.location.hash = '/register';
   }
 
   navigateToDetail(id: string): void {

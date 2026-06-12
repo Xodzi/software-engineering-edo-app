@@ -1,6 +1,6 @@
 import { observer } from 'mobx-react-lite';
 import { LoginPageController } from './LoginPage.controller';
-import './LoginPage.css'; // Импортируем стили
+import './LoginPage.view.css';
 
 interface LoginPageViewProps {
   controller: LoginPageController;
@@ -73,7 +73,10 @@ export const LoginPageView = observer(function LoginPageView({
         </form>
 
         <div className="login-footer">
-          <a href="/register" className="link">
+          <a href="#/register" className="link" onClick={(e) => {
+            e.preventDefault();
+            controller.navigateToRegister();
+          }}>
             Нет аккаунта? Зарегистрироваться
           </a>
         </div>

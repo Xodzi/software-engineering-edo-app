@@ -114,7 +114,10 @@ export const RegisterPageView = observer(function RegisterPageView({
         </form>
 
         <div className="register-footer">
-          <a href="/login" className="link">
+          <a href="#/login" className="link" onClick={(e) => {
+            e.preventDefault();
+            controller.navigateToLogin();
+          }}>
             Уже есть аккаунт? Войти
           </a>
         </div>

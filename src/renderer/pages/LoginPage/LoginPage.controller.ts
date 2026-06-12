@@ -1,5 +1,11 @@
 import { makeAutoObservable } from 'mobx';
+import type { FormEvent } from 'react';
 import { routerController } from '../../controllers/RouterController';
+
+interface LoginPageControllerOptions {
+  login: (email: string, password: string) => Promise<void>;
+  navigateToRegister: () => void;
+}
 
 export class LoginPageController {
   email = '';
@@ -8,7 +14,7 @@ export class LoginPageController {
   error: string | null = null;
 
 
-  constructor() {
+  constructor(private readonly options: LoginPageControllerOptions) {
     makeAutoObservable(this);
   }
 
@@ -26,7 +32,7 @@ export class LoginPageController {
     this.clearError();
   }
 
-  async handleSubmit(e: React.FormEvent): Promise<void> {
+  async handleSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
     
     if (!this.isFormValid) {
@@ -38,16 +44,17 @@ export class LoginPageController {
     this.clearError();
 
     try {
-      const result = await window.electronAPI.auth.login({
-        email: this.email,
-        password: this.password
-      });          
+      await this.options.login(this.email, this.password);
       routerController.navigateToList();
     } catch (err) {
       this.setError(this.extractErrorMessage(err));
     } finally {
       this.setLoading(false);
     }
+  }
+
+  navigateToRegister(): void {
+    this.options.navigateToRegister();
   }
 
   clearError(): void {
