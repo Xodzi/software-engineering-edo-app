@@ -1,14 +1,18 @@
+import { Buffer } from 'node:buffer';
 import { eq, and, desc, isNull } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { IDocumentRepository } from './IDocumentRepository';
 import {
+  AddDocumentAttachmentDto,
   Document,
+  DocumentAttachment,
+  DocumentAttachmentFile,
   DocumentVersion,
   CreateDocumentDto,
   UpdateDocumentDto,
 } from '../../../shared/types';
-import { documents, documentVersions } from '../../db/schema';
-import type { DbDocument, DbDocumentVersion } from '../../db/schema';
+import { documentAttachments, documents, documentVersions } from '../../db/schema';
+import type { DbDocument, DbDocumentAttachment, DbDocumentVersion } from '../../db/schema';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../../db/schema';
 
@@ -35,6 +39,24 @@ function toVersion(dbVer: DbDocumentVersion): DocumentVersion {
     authorName: dbVer.authorName,
     createdAt: dbVer.createdAt,
     changeNote: dbVer.changeNote,
+  };
+}
+
+function toAttachment(dbAttachment: DbDocumentAttachment): DocumentAttachment {
+  return {
+    id: dbAttachment.id,
+    documentId: dbAttachment.documentId,
+    fileName: dbAttachment.fileName,
+    mimeType: dbAttachment.mimeType,
+    size: dbAttachment.size,
+    createdAt: dbAttachment.createdAt,
+  };
+}
+
+function toAttachmentFile(dbAttachment: DbDocumentAttachment): DocumentAttachmentFile {
+  return {
+    ...toAttachment(dbAttachment),
+    data: new Uint8Array(dbAttachment.data),
   };
 }
 
@@ -206,6 +228,63 @@ export class DocumentRepository implements IDocumentRepository {
       .all();
 
     return rows.map(toVersion);
+  }
+
+  findAttachments(documentId: string): DocumentAttachment[] {
+    const rows = this.db
+      .select()
+      .from(documentAttachments)
+      .where(eq(documentAttachments.documentId, documentId))
+      .orderBy(desc(documentAttachments.createdAt))
+      .all();
+
+    return rows.map(toAttachment);
+  }
+
+  addAttachment(documentId: string, dto: AddDocumentAttachmentDto): DocumentAttachment {
+    const now = new Date().toISOString();
+    const newAttachment: DbDocumentAttachment = {
+      id: uuidv4(),
+      documentId,
+      fileName: dto.fileName,
+      mimeType: dto.mimeType || 'application/octet-stream',
+      size: dto.size,
+      data: Buffer.from(dto.data),
+      createdAt: now,
+    };
+
+    this.db.insert(documentAttachments).values(newAttachment).run();
+    return toAttachment(newAttachment);
+  }
+
+  getAttachmentFile(
+    documentId: string,
+    attachmentId: string,
+  ): DocumentAttachmentFile | undefined {
+    const row = this.db
+      .select()
+      .from(documentAttachments)
+      .where(
+        and(
+          eq(documentAttachments.documentId, documentId),
+          eq(documentAttachments.id, attachmentId),
+        ),
+      )
+      .get();
+
+    return row ? toAttachmentFile(row) : undefined;
+  }
+
+  deleteAttachment(documentId: string, attachmentId: string): void {
+    this.db
+      .delete(documentAttachments)
+      .where(
+        and(
+          eq(documentAttachments.documentId, documentId),
+          eq(documentAttachments.id, attachmentId),
+        ),
+      )
+      .run();
   }
 
   getVersionByNumber(

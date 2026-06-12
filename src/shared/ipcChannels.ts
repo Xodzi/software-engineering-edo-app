@@ -7,6 +7,10 @@ export const IPC = {
     RESTORE_VERSION: 'documents:restoreVersion',
     DELETE: 'documents:delete',
     GET_VERSIONS: 'documents:getVersions',
+    GET_ATTACHMENTS: 'documents:getAttachments',
+    ADD_ATTACHMENT: 'documents:addAttachment',
+    GET_ATTACHMENT_FILE: 'documents:getAttachmentFile',
+    DELETE_ATTACHMENT: 'documents:deleteAttachment',
   },
 } as const;
 

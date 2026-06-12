@@ -3,6 +3,7 @@ import { Document, DocStatus } from '@shared/types';
 
 export class DocumentListController {
   statusFilter: DocStatus | 'ALL' = 'ALL';
+  searchQuery = '';
   allDocuments: readonly Document[] = [];
 
   constructor() {
@@ -14,11 +15,27 @@ export class DocumentListController {
   }
 
   get filteredDocuments(): readonly Document[] {
-    if (this.statusFilter === 'ALL') return this.allDocuments;
-    return this.allDocuments.filter((doc) => doc.status === this.statusFilter);
+    const query = this.searchQuery.trim().toLowerCase();
+
+    return this.allDocuments.filter((doc) => {
+      const matchesStatus = this.statusFilter === 'ALL' || doc.status === this.statusFilter;
+      if (!matchesStatus) return false;
+      if (!query) return true;
+
+      return [
+        doc.title,
+        doc.content,
+        doc.authorName,
+        doc.status,
+      ].some((value) => value.toLowerCase().includes(query));
+    });
   }
 
   setStatusFilter(value: DocStatus | 'ALL'): void {
     this.statusFilter = value;
+  }
+
+  setSearchQuery(value: string): void {
+    this.searchQuery = value;
   }
 }

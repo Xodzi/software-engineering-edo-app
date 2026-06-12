@@ -24,6 +24,19 @@ export interface DocumentVersion {
   changeNote: string;
 }
 
+export interface DocumentAttachment {
+  id: string;
+  documentId: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface DocumentAttachmentFile extends DocumentAttachment {
+  data: ArrayBuffer | Uint8Array;
+}
+
 export interface CreateDocumentDto {
   title: string;
   content: string;
@@ -35,6 +48,13 @@ export interface UpdateDocumentDto {
   title?: string;
   content?: string;
   changeNote: string;
+}
+
+export interface AddDocumentAttachmentDto {
+  fileName: string;
+  mimeType: string;
+  size: number;
+  data: ArrayBuffer;
 }
 
 export interface ApprovalActor {

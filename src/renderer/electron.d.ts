@@ -1,4 +1,24 @@
-import { Document, DocumentVersion, CreateDocumentDto, UpdateDocumentDto } from '../shared/types';
+import {
+  AddDocumentAttachmentDto,
+  AuthResponse,
+  CurrentUser,
+  Document,
+  DocumentAttachment,
+  DocumentAttachmentFile,
+  DocumentVersion,
+  CreateDocumentDto,
+  LoginDTO,
+  RegisterDTO,
+  UpdateDocumentDto,
+} from '../shared/types';
+
+type ApiErrorResponse = {
+  error: {
+    message: string;
+    code: string;
+    statusCode: number;
+  };
+};
 
 declare global {
   interface Window {
@@ -11,12 +31,16 @@ declare global {
         restoreVersion(id: string, versionNumber: number): Promise<Document>;
         delete(id: string): Promise<void>;
         getVersions(id: string): Promise<DocumentVersion[]>;
+        getAttachments(id: string): Promise<DocumentAttachment[]>;
+        addAttachment(id: string, dto: AddDocumentAttachmentDto): Promise<DocumentAttachment>;
+        getAttachmentFile(id: string, attachmentId: string): Promise<DocumentAttachmentFile>;
+        deleteAttachment(id: string, attachmentId: string): Promise<void>;
       };
       auth: {
-        login: (dto: { email: string; password: string }) => Promise<any>;
-        register: (dto: { name: string; email: string; password: string }) => Promise<any>;
+        login: (dto: LoginDTO) => Promise<AuthResponse | ApiErrorResponse>;
+        register: (dto: RegisterDTO) => Promise<AuthResponse | ApiErrorResponse>;
         logout: () => Promise<void>;
-        getCurrentUser: () => Promise<CurrentUser | null | { error: any }>;
+        getCurrentUser: () => Promise<CurrentUser | null | ApiErrorResponse>;
       };
     };
   }

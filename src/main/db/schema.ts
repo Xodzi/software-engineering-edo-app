@@ -3,6 +3,7 @@ import { InferSelectModel, relations, sql } from 'drizzle-orm'
 
 export type DbDocument = InferSelectModel<typeof documents>;
 export type DbDocumentVersion = InferSelectModel<typeof documentVersions>;
+export type DbDocumentAttachment = InferSelectModel<typeof documentAttachments>;
 export type DbUser = InferSelectModel<typeof users>;
 
 export const documents = sqliteTable('documents', {
@@ -48,6 +49,25 @@ export const documentsRelations = relations(documents, ({ many, one }) => ({
 export const documentVersionsRelations = relations(documentVersions, ({ one }) => ({
   document: one(documents, {
     fields: [documentVersions.documentId],
+    references: [documents.id],
+  }),
+}))
+
+export const documentAttachments = sqliteTable('document_attachments', {
+  id: text('id').primaryKey(),
+  documentId: text('document_id').notNull().references(() => documents.id),
+  fileName: text('file_name').notNull(),
+  mimeType: text('mime_type').notNull().default('application/octet-stream'),
+  size: integer('size').notNull(),
+  data: blob('data', { mode: 'buffer' }).notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+}, (table) => [
+  index('idx_attachments_document_id').on(table.documentId),
+])
+
+export const documentAttachmentsRelations = relations(documentAttachments, ({ one }) => ({
+  document: one(documents, {
+    fields: [documentAttachments.documentId],
     references: [documents.id],
   }),
 }))

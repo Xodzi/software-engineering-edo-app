@@ -1,6 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 // src/renderer/features/auth/AuthContext.tsx
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CurrentUser } from '../../../shared/types/auth';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { CurrentUser } from '@shared/types';
 
 interface AuthContextType {
   user: CurrentUser | null;
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadCurrentUser = async () => {
       try {
         const result = await window.electronAPI.auth.getCurrentUser();
-        if (result && !result?.error) {
+        if (result && !('error' in result)) {
           setUser(result);
         }
       } catch (err) {
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const result = await window.electronAPI.auth.login({ email, password });
-      if (result?.error) {
+      if ('error' in result) {
         setError(result.error.message);
         return;
       }
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const result = await window.electronAPI.auth.register({ name, email, password });
-      if (result?.error) {
+      if ('error' in result) {
         setError(result.error.message);
         return;
       }

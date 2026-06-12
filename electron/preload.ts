@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { AUTH_CHANNELS, IPC } from '../src/shared/ipcChannels';
-import { CreateDocumentDto, UpdateDocumentDto } from '../src/shared/types';
+import {
+  AddDocumentAttachmentDto,
+  CreateDocumentDto,
+  LoginDTO,
+  RegisterDTO,
+  UpdateDocumentDto,
+} from '../src/shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   documents: {
@@ -15,10 +21,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => ipcRenderer.invoke(IPC.DOCUMENTS.DELETE, id),
     getVersions: (id: string) =>
       ipcRenderer.invoke(IPC.DOCUMENTS.GET_VERSIONS, id),
+    getAttachments: (id: string) =>
+      ipcRenderer.invoke(IPC.DOCUMENTS.GET_ATTACHMENTS, id),
+    addAttachment: (id: string, dto: AddDocumentAttachmentDto) =>
+      ipcRenderer.invoke(IPC.DOCUMENTS.ADD_ATTACHMENT, id, dto),
+    getAttachmentFile: (id: string, attachmentId: string) =>
+      ipcRenderer.invoke(IPC.DOCUMENTS.GET_ATTACHMENT_FILE, id, attachmentId),
+    deleteAttachment: (id: string, attachmentId: string) =>
+      ipcRenderer.invoke(IPC.DOCUMENTS.DELETE_ATTACHMENT, id, attachmentId),
   },
   auth: {
-    login: (dto: any) => ipcRenderer.invoke(AUTH_CHANNELS.LOGIN, dto),
-    register: (dto: any) => ipcRenderer.invoke(AUTH_CHANNELS.REGISTER, dto),
+    login: (dto: LoginDTO) => ipcRenderer.invoke(AUTH_CHANNELS.LOGIN, dto),
+    register: (dto: RegisterDTO) => ipcRenderer.invoke(AUTH_CHANNELS.REGISTER, dto),
     logout: () => ipcRenderer.invoke(AUTH_CHANNELS.LOGOUT),
     getCurrentUser: () => ipcRenderer.invoke(AUTH_CHANNELS.GET_CURRENT_USER),
   },

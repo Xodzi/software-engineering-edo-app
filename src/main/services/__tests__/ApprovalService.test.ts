@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { IDocumentRepository } from '../../repositories/IDocumentRepository';
+import { IDocumentRepository } from '../../repositories/documentRepository/IDocumentRepository';
 import { ApprovalService } from '../ApprovalService';
 import {
+  AddDocumentAttachmentDto,
   ApprovalActor,
   CreateDocumentDto,
   DocStatus,
   Document,
+  DocumentAttachment,
+  DocumentAttachmentFile,
   DocumentVersion,
   UpdateDocumentDto,
 } from '../../../shared/types';
@@ -78,6 +81,10 @@ class FakeDocumentRepository implements IDocumentRepository {
     return updatedDocument;
   }
 
+  restoreVersion(id: string): Document {
+    return this.requireDocument(id);
+  }
+
   delete(id: string): void {
     this.documents.delete(id);
     this.versions.delete(id);
@@ -86,6 +93,27 @@ class FakeDocumentRepository implements IDocumentRepository {
   findVersions(documentId: string): DocumentVersion[] {
     return this.versions.get(documentId) ?? [];
   }
+
+  findAttachments(): DocumentAttachment[] {
+    return [];
+  }
+
+  addAttachment(_documentId: string, dto: AddDocumentAttachmentDto): DocumentAttachment {
+    return {
+      id: 'attachment-1',
+      documentId: _documentId,
+      fileName: dto.fileName,
+      mimeType: dto.mimeType,
+      size: dto.size,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  getAttachmentFile(): DocumentAttachmentFile | undefined {
+    return undefined;
+  }
+
+  deleteAttachment(): void {}
 
   getVersionByNumber(
     documentId: string,

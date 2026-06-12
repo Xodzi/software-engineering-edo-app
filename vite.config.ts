@@ -4,6 +4,12 @@ import electron from 'vite-plugin-electron/simple'
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react'
 
+const alias = {
+  '@shared': path.resolve(__dirname, 'src/shared'),
+  '@renderer': path.resolve(__dirname, 'src/renderer'),
+  '@main': path.resolve(__dirname, 'src/main'),
+};
+
 export default defineConfig({
   plugins: [
     react(),
@@ -16,6 +22,9 @@ export default defineConfig({
             rollupOptions: {
               external: ['better-sqlite3'],
             },
+          },
+          resolve: {
+            alias,
           },
         },
       },
@@ -36,10 +45,7 @@ export default defineConfig({
   },
 
   resolve: {
-    alias: {
-      '@shared': path.resolve(__dirname, 'src/shared'),
-      '@renderer': path.resolve(__dirname, 'src/renderer'),
-    },
+    alias,
   },
   optimizeDeps: {
     exclude: ['better-sqlite3'],

@@ -43,6 +43,13 @@ export const DocumentsPageView = observer(function DocumentsPageView({
           <div className="toolbar-row__meta">
             Список документов, фильтр по статусу и создание нового документа через диалоговое окно.
           </div>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => controller.openCreateDialog()}
+          >
+            Создать документ
+          </button>
         </div>
 
         <DocumentList

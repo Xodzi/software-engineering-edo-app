@@ -1,5 +1,8 @@
 import {
+  AddDocumentAttachmentDto,
   Document,
+  DocumentAttachment,
+  DocumentAttachmentFile,
   DocumentVersion,
   CreateDocumentDto,
   UpdateDocumentDto,
@@ -14,6 +17,10 @@ export interface IDocumentRepository {
   restoreVersion(id: string, versionNumber: number, changeNote: string): Document;
   delete(id: string): void;
   findVersions(documentId: string): DocumentVersion[];
+  findAttachments(documentId: string): DocumentAttachment[];
+  addAttachment(documentId: string, dto: AddDocumentAttachmentDto): DocumentAttachment;
+  getAttachmentFile(documentId: string, attachmentId: string): DocumentAttachmentFile | undefined;
+  deleteAttachment(documentId: string, attachmentId: string): void;
   getVersionByNumber(
     documentId: string,
     version: number,

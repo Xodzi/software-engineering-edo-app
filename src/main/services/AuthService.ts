@@ -2,10 +2,9 @@
 import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/UserRepository';
 import { RegisterDTO, LoginDTO, AuthResponse, User } from '@shared/types';
-import { AppError, AuthErrors } from '../../shared/errors';
+import { AuthErrors } from '../../shared/errors';
 
 export class AuthService {
-  private currentToken: string | null = null;
   private currentUserId: number | null = null;
 
   constructor(private userRepo: UserRepository) {}
@@ -27,7 +26,6 @@ export class AuthService {
     });
 
     const token = this.generateToken(user.id);
-    this.currentToken = token;
     this.currentUserId = user.id;
 
     return {
@@ -50,7 +48,6 @@ export class AuthService {
     }
 
     const token = this.generateToken(user.id);
-    this.currentToken = token;
     this.currentUserId = user.id;
 
     return {
@@ -60,7 +57,6 @@ export class AuthService {
   }
 
   logout() {
-    this.currentToken = null;
     this.currentUserId = null;
   }
 
@@ -91,7 +87,11 @@ export class AuthService {
   }
 
   private sanitizeUser(user: User): Omit<User, 'password'> {
-    const { password, ...safeUser } = user;
-    return safeUser;
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+    };
   }
 }

@@ -35,18 +35,27 @@ export const DocumentListView = observer(function DocumentListView({
         <div className="document-list-summary">
           Найдено документов: {filteredDocuments.length}
         </div>
-        <select
-          className="filter-select"
-          value={controller.statusFilter}
-          onChange={(event) => controller.setStatusFilter(event.target.value as DocStatus | 'ALL')}
-        >
-          <option value="ALL">Все статусы</option>
-          {ALL_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
+        <div className="document-list-filters">
+          <input
+            className="search-input"
+            type="search"
+            value={controller.searchQuery}
+            placeholder="Поиск по названию, автору, содержанию"
+            onChange={(event) => controller.setSearchQuery(event.target.value)}
+          />
+          <select
+            className="filter-select"
+            value={controller.statusFilter}
+            onChange={(event) => controller.setStatusFilter(event.target.value as DocStatus | 'ALL')}
+          >
+            <option value="ALL">Все статусы</option>
+            {ALL_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {filteredDocuments.length === 0 ? (

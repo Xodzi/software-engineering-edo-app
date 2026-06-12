@@ -5,6 +5,7 @@ import { StatusBadge } from '../../components/StatusBadge/StatusBadge';
 import { VersionHistory } from '../../components/VersionHistory';
 import { DocumentEditor } from '../../components/DocumentEditor';
 import { DocumentVersionComparison } from '../../components/DocumentVersionComparison';
+import { DocumentAttachments } from '../../components/DocumentAttachments';
 
 interface DocumentDetailPageViewProps {
   controller: DocumentDetailPageController;
@@ -155,6 +156,16 @@ export const DocumentDetailPageView = observer(function DocumentDetailPageView({
               onVersionClick={(version) => controller.selectVersion(version)}
             />
           </section>
+
+          <DocumentAttachments
+            attachments={controller.attachments}
+            canEdit={controller.isDraft}
+            uploading={controller.uploadingAttachment}
+            error={controller.attachmentError}
+            onUpload={(file) => void controller.uploadAttachment(file)}
+            onDownload={(attachmentId) => void controller.downloadAttachment(attachmentId)}
+            onDelete={(attachmentId) => void controller.deleteAttachment(attachmentId)}
+          />
         </div>
 
         <div className="xl:col-span-4">

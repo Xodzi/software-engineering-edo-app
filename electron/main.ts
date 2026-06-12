@@ -3,10 +3,11 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { IPC } from '../src/shared/ipcChannels';
 import { DocumentService } from '../src/main/services/DocumentService';
-import { CreateDocumentDto, UpdateDocumentDto } from '../src/shared/types';
+import { AddDocumentAttachmentDto, CreateDocumentDto, UpdateDocumentDto } from '../src/shared/types';
 import { initDatabase, closeDatabase } from '../src/main/db';
 import { DocumentRepository } from '@main/repositories/documentRepository/DocumentRepository';
 import { registerAuthHandlers } from '../src/main/ipc/handlers/authHandlers';
+import { FileStorageService } from '../src/main/services/FileStorageService';
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -47,6 +48,7 @@ async function registerIpcHandlers(): Promise<void> {
   const db = await initDatabase();
   const repository = new DocumentRepository(db);
   const service = new DocumentService(repository);
+  const fileStorageService = new FileStorageService(repository);
 
   ipcMain.handle(IPC.DOCUMENTS.GET_ALL, () => service.getAllDocuments());
   ipcMain.handle(IPC.DOCUMENTS.GET_BY_ID, (_, id: string) =>
@@ -67,6 +69,24 @@ async function registerIpcHandlers(): Promise<void> {
   );
   ipcMain.handle(IPC.DOCUMENTS.GET_VERSIONS, (_, id: string) =>
     service.getDocumentVersions(id),
+  );
+  ipcMain.handle(IPC.DOCUMENTS.GET_ATTACHMENTS, (_, id: string) =>
+    fileStorageService.getAttachments(id),
+  );
+  ipcMain.handle(
+    IPC.DOCUMENTS.ADD_ATTACHMENT,
+    (_, id: string, dto: AddDocumentAttachmentDto) =>
+      fileStorageService.addAttachment(id, dto),
+  );
+  ipcMain.handle(
+    IPC.DOCUMENTS.GET_ATTACHMENT_FILE,
+    (_, id: string, attachmentId: string) =>
+      fileStorageService.getAttachmentFile(id, attachmentId),
+  );
+  ipcMain.handle(
+    IPC.DOCUMENTS.DELETE_ATTACHMENT,
+    (_, id: string, attachmentId: string) =>
+      fileStorageService.deleteAttachment(id, attachmentId),
   );
   registerAuthHandlers(db);
 }
