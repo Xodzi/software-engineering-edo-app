@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../src/shared/ipcChannels';
-import { CreateDocumentDto, UpdateDocumentDto } from '../src/shared/types';
+import {
+  ApprovalActor,
+  ApprovalResult,
+  CreateDocumentDto,
+  UpdateDocumentDto,
+} from '../src/shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   documents: {
@@ -13,5 +18,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => ipcRenderer.invoke(IPC.DOCUMENTS.DELETE, id),
     getVersions: (id: string) =>
       ipcRenderer.invoke(IPC.DOCUMENTS.GET_VERSIONS, id),
+  },
+  approval: {
+    submit: (id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult> =>
+      ipcRenderer.invoke(IPC.APPROVAL.SUBMIT, id, actor, comment),
+    approve: (id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult> =>
+      ipcRenderer.invoke(IPC.APPROVAL.APPROVE, id, actor, comment),
+    reject: (id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult> =>
+      ipcRenderer.invoke(IPC.APPROVAL.REJECT, id, actor, comment),
   },
 });

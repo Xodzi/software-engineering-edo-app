@@ -5,7 +5,7 @@ import { DocumentsPage } from './renderer/pages/DocumentsPage';
 import { DocumentDetailPage } from './renderer/pages/DocumentDetailPage';
 import './App.css';
 
-function App() {
+function AppView() {
   useEffect(() => {
     return routerController.init();
   }, []);
@@ -24,4 +24,6 @@ function App() {
   );
 }
 
-export default observer(App);
+const App = observer(AppView);
+
+export default App;

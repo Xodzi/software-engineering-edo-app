@@ -1,4 +1,11 @@
-import { Document, DocumentVersion, CreateDocumentDto, UpdateDocumentDto } from '../shared/types';
+import {
+  ApprovalActor,
+  ApprovalResult,
+  Document,
+  DocumentVersion,
+  CreateDocumentDto,
+  UpdateDocumentDto,
+} from '../shared/types';
 
 declare global {
   interface Window {
@@ -10,6 +17,11 @@ declare global {
         update(id: string, dto: UpdateDocumentDto): Promise<Document>;
         delete(id: string): Promise<void>;
         getVersions(id: string): Promise<DocumentVersion[]>;
+      };
+      approval: {
+        submit(id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult>;
+        approve(id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult>;
+        reject(id: string, actor: ApprovalActor, comment?: string): Promise<ApprovalResult>;
       };
     };
   }

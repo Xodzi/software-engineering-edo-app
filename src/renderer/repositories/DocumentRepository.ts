@@ -1,5 +1,12 @@
 import { BaseRepository } from '../bases/BaseRepository';
-import { Document, DocumentVersion, CreateDocumentDto, UpdateDocumentDto } from '@shared/types';
+import {
+  ApprovalActor,
+  ApprovalResult,
+  Document,
+  DocumentVersion,
+  CreateDocumentDto,
+  UpdateDocumentDto,
+} from '@shared/types';
 
 export class DocumentRepository extends BaseRepository<Document> {
   async getAll(): Promise<readonly Document[]> {
@@ -24,6 +31,30 @@ export class DocumentRepository extends BaseRepository<Document> {
 
   async getVersions(documentId: string): Promise<readonly DocumentVersion[]> {
     return window.electronAPI.documents.getVersions(documentId);
+  }
+
+  async submitForApproval(
+    documentId: string,
+    actor: ApprovalActor,
+    comment?: string,
+  ): Promise<ApprovalResult> {
+    return window.electronAPI.approval.submit(documentId, actor, comment);
+  }
+
+  async approveDocument(
+    documentId: string,
+    actor: ApprovalActor,
+    comment?: string,
+  ): Promise<ApprovalResult> {
+    return window.electronAPI.approval.approve(documentId, actor, comment);
+  }
+
+  async rejectDocument(
+    documentId: string,
+    actor: ApprovalActor,
+    comment?: string,
+  ): Promise<ApprovalResult> {
+    return window.electronAPI.approval.reject(documentId, actor, comment);
   }
 }
 

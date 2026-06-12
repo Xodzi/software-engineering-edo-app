@@ -5,7 +5,8 @@ import { IPC } from '../src/shared/ipcChannels';
 import { initDatabase, closeDatabase } from '../src/main/db/database';
 import { DocumentRepository } from '../src/main/repositories/DocumentRepository';
 import { DocumentService } from '../src/main/services/DocumentService';
-import { CreateDocumentDto, UpdateDocumentDto } from '../src/shared/types';
+import { ApprovalActor, CreateDocumentDto, UpdateDocumentDto } from '../src/shared/types';
+import { ApprovalService } from '../src/main/services/ApprovalService';
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -44,6 +45,7 @@ async function registerIpcHandlers(): Promise<void> {
   const db = await initDatabase();
   const repository = new DocumentRepository(db);
   const service = new DocumentService(repository);
+  const approvalService = new ApprovalService(repository);
 
   ipcMain.handle(IPC.DOCUMENTS.GET_ALL, () => service.getAllDocuments());
   ipcMain.handle(IPC.DOCUMENTS.GET_BY_ID, (_, id: string) =>
@@ -61,6 +63,21 @@ async function registerIpcHandlers(): Promise<void> {
   );
   ipcMain.handle(IPC.DOCUMENTS.GET_VERSIONS, (_, id: string) =>
     service.getDocumentVersions(id),
+  );
+  ipcMain.handle(
+    IPC.APPROVAL.SUBMIT,
+    (_, id: string, actor: ApprovalActor, comment?: string) =>
+      approvalService.submitForApproval(id, actor, comment),
+  );
+  ipcMain.handle(
+    IPC.APPROVAL.APPROVE,
+    (_, id: string, actor: ApprovalActor, comment?: string) =>
+      approvalService.approveDocument(id, actor, comment),
+  );
+  ipcMain.handle(
+    IPC.APPROVAL.REJECT,
+    (_, id: string, actor: ApprovalActor, comment?: string) =>
+      approvalService.rejectDocument(id, actor, comment),
   );
 }
 

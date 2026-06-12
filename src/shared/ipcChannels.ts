@@ -7,4 +7,9 @@ export const IPC = {
     DELETE: 'documents:delete',
     GET_VERSIONS: 'documents:getVersions',
   },
+  APPROVAL: {
+    SUBMIT: 'approval:submit',
+    APPROVE: 'approval:approve',
+    REJECT: 'approval:reject',
+  },
 } as const;
