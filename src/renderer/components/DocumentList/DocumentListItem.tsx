@@ -13,6 +13,9 @@ export function DocumentListItem({ document, onClick }: DocumentListItemProps) {
     <tr className="document-list-item" onClick={onClick}>
       <td>
         {document.title}
+        {document.sourceVersionId && (
+          <span className="document-list-item__meta">На основе версии {document.sourceVersionId}</span>
+        )}
         <span className="document-list-item__meta">Открыть карточку документа</span>
       </td>
       <td>

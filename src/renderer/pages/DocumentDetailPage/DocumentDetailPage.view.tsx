@@ -114,7 +114,7 @@ export const DocumentDetailPageView = observer(function DocumentDetailPageView({
                 <StatusBadge status={document.status} />
               </div>
 
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-4">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <span className="block text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
                     Автор
@@ -133,6 +133,14 @@ export const DocumentDetailPageView = observer(function DocumentDetailPageView({
                   </span>
                   <strong className="mt-2 block text-slate-900">{formatDateTime(document.updatedAt)}</strong>
                 </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <span className="block text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
+                    Источник
+                  </span>
+                  <strong className="mt-2 block text-slate-900">
+                    {document.sourceVersionId ? `Версия ${document.sourceVersionId}` : 'Новый документ'}
+                  </strong>
+                </div>
               </div>
             </div>
 
@@ -150,6 +158,12 @@ export const DocumentDetailPageView = observer(function DocumentDetailPageView({
             <div className="mb-4">
               <h2 className="text-xl font-semibold text-slate-900">История версий</h2>
             </div>
+
+            {controller.versionIntegrityWarning && (
+              <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {controller.versionIntegrityWarning}
+              </div>
+            )}
 
             <VersionHistory
               versions={controller.versions}
@@ -173,9 +187,33 @@ export const DocumentDetailPageView = observer(function DocumentDetailPageView({
             currentDocument={controller.document}
             selectedVersion={controller.selectedVersion}
             onRestoreVersion={(versionNumber) => void controller.restoreDocumentVersion(versionNumber)}
+            onCreateVersionDraft={(version) => controller.openCreateFromVersionDialog(version)}
           />
         </div>
       </div>
+
+      {controller.isCreateFromVersionDialogOpen && (
+        <div
+          className="fixed inset-0 z-30 flex items-stretch justify-center bg-slate-950/55 p-4 backdrop-blur-sm sm:p-6 lg:p-8"
+          role="presentation"
+          onClick={() => controller.closeCreateFromVersionDialog()}
+        >
+          <div
+            className="h-full w-full max-w-4xl overflow-auto rounded-3xl border border-slate-200 bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Создание черновика на основе версии"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <DocumentEditor
+              initialTitle={controller.createFromVersionInitialTitle}
+              initialContent={controller.createFromVersionInitialContent}
+              onSave={(dto) => ('changeNote' in dto ? Promise.resolve() : controller.createDocumentFromVersion(dto))}
+              onCancel={() => controller.closeCreateFromVersionDialog()}
+            />
+          </div>
+        </div>
+      )}
 
       {controller.isEditDialogOpen && (
         <div

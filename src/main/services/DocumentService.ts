@@ -2,7 +2,9 @@ import { IDocumentRepository } from '@main/repositories/documentRepository/IDocu
 import {
   Document,
   DocumentVersion,
+  DocumentVersionIntegrity,
   CreateDocumentDto,
+  CreateDocumentFromVersionDto,
   UpdateDocumentDto,
 } from '../../shared/types';
 
@@ -22,6 +24,11 @@ export class DocumentService {
   createDocument(dto: CreateDocumentDto): Document {
     this.validateTitle(dto.title);
     return this.repository.create(dto);
+  }
+
+  createDocumentFromVersion(dto: CreateDocumentFromVersionDto): Document {
+    this.validateTitle(dto.title);
+    return this.repository.createFromVersion(dto);
   }
 
   updateDocument(id: string, dto: UpdateDocumentDto): Document {
@@ -62,6 +69,11 @@ export class DocumentService {
   getDocumentVersions(id: string): DocumentVersion[] {
     this.getDocumentById(id);
     return this.repository.findVersions(id);
+  }
+
+  checkVersionHistoryIntegrity(id: string): DocumentVersionIntegrity {
+    this.getDocumentById(id);
+    return this.repository.checkVersionHistoryIntegrity(id);
   }
 
   private validateTitle(title: string): void {

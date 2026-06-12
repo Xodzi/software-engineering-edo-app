@@ -5,11 +5,13 @@ import {
   AddDocumentAttachmentDto,
   ApprovalActor,
   CreateDocumentDto,
+  CreateDocumentFromVersionDto,
   DocStatus,
   Document,
   DocumentAttachment,
   DocumentAttachmentFile,
   DocumentVersion,
+  DocumentVersionIntegrity,
   UpdateDocumentDto,
 } from '../../../shared/types';
 
@@ -39,11 +41,17 @@ class FakeDocumentRepository implements IDocumentRepository {
       status: 'DRAFT',
       authorId: dto.authorId,
       authorName: dto.authorName,
+      sourceVersionId: null,
       createdAt: now,
       updatedAt: now,
     };
     this.seed(document);
     return document;
+  }
+
+  createFromVersion(dto: CreateDocumentFromVersionDto): Document {
+    void dto;
+    throw new Error('Not implemented');
   }
 
   update(id: string, dto: UpdateDocumentDto): Document {
@@ -66,7 +74,7 @@ class FakeDocumentRepository implements IDocumentRepository {
       updatedAt: new Date().toISOString(),
     };
     const documentVersions = this.versions.get(id) ?? [];
-    documentVersions.push({
+    documentVersions.push(versionWithHashes({
       id: `version-${documentVersions.length + 1}`,
       documentId: id,
       versionNumber: documentVersions.length + 1,
@@ -75,13 +83,15 @@ class FakeDocumentRepository implements IDocumentRepository {
       authorName: document.authorName,
       createdAt: updatedDocument.updatedAt,
       changeNote,
-    });
+    }));
     this.versions.set(id, documentVersions);
     this.documents.set(id, updatedDocument);
     return updatedDocument;
   }
 
-  restoreVersion(id: string): Document {
+  restoreVersion(id: string, versionNumber: number, changeNote: string): Document {
+    void versionNumber;
+    void changeNote;
     return this.requireDocument(id);
   }
 
@@ -94,14 +104,21 @@ class FakeDocumentRepository implements IDocumentRepository {
     return this.versions.get(documentId) ?? [];
   }
 
-  findAttachments(): DocumentAttachment[] {
+  checkVersionHistoryIntegrity(documentId: string): DocumentVersionIntegrity {
+    void documentId;
+    return { isValid: true, violations: [] };
+  }
+
+  findAttachments(documentId: string): DocumentAttachment[] {
+    void documentId;
     return [];
   }
 
-  addAttachment(_documentId: string, dto: AddDocumentAttachmentDto): DocumentAttachment {
+  addAttachment(documentId: string, dto: AddDocumentAttachmentDto): DocumentAttachment {
+    void documentId;
     return {
       id: 'attachment-1',
-      documentId: _documentId,
+      documentId,
       fileName: dto.fileName,
       mimeType: dto.mimeType,
       size: dto.size,
@@ -109,11 +126,16 @@ class FakeDocumentRepository implements IDocumentRepository {
     };
   }
 
-  getAttachmentFile(): DocumentAttachmentFile | undefined {
+  getAttachmentFile(documentId: string, attachmentId: string): DocumentAttachmentFile | undefined {
+    void documentId;
+    void attachmentId;
     return undefined;
   }
 
-  deleteAttachment(): void {}
+  deleteAttachment(documentId: string, attachmentId: string): void {
+    void documentId;
+    void attachmentId;
+  }
 
   getVersionByNumber(
     documentId: string,
@@ -151,8 +173,19 @@ function createDocument(status: DocStatus): Document {
     status,
     authorId: 'author-1',
     authorName: 'Author',
+    sourceVersionId: null,
     createdAt: '2026-06-01T00:00:00.000Z',
     updatedAt: '2026-06-01T00:00:00.000Z',
+  };
+}
+
+function versionWithHashes(
+  version: Omit<DocumentVersion, 'contentHash' | 'historyHash'>,
+): DocumentVersion {
+  return {
+    ...version,
+    contentHash: 'content-hash',
+    historyHash: 'history-hash',
   };
 }
 

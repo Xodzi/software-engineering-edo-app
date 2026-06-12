@@ -5,7 +5,9 @@ import {
   DocumentAttachment,
   DocumentAttachmentFile,
   DocumentVersion,
+  DocumentVersionIntegrity,
   CreateDocumentDto,
+  CreateDocumentFromVersionDto,
   UpdateDocumentDto,
 } from '@shared/types';
 
@@ -22,6 +24,10 @@ export class DocumentRepository extends BaseRepository<Document> {
     return window.electronAPI.documents.create(dto);
   }
 
+  async createFromVersion(dto: CreateDocumentFromVersionDto): Promise<Document> {
+    return window.electronAPI.documents.createFromVersion(dto);
+  }
+
   async update(id: string, dto: UpdateDocumentDto): Promise<Document> {
     return window.electronAPI.documents.update(id, dto);
   }
@@ -36,6 +42,10 @@ export class DocumentRepository extends BaseRepository<Document> {
 
   async getVersions(documentId: string): Promise<readonly DocumentVersion[]> {
     return window.electronAPI.documents.getVersions(documentId);
+  }
+
+  async checkVersionIntegrity(documentId: string): Promise<DocumentVersionIntegrity> {
+    return window.electronAPI.documents.checkVersionIntegrity(documentId);
   }
 
   async getAttachments(documentId: string): Promise<readonly DocumentAttachment[]> {

@@ -16,6 +16,8 @@ export const documents = sqliteTable('documents', {
   authorId: text('author_id').notNull(),
   authorName: text('author_name').notNull(),
   currentVersionId: text('current_version_id'),
+  sourceVersionId: text('source_version_id'),
+  versionHistoryHash: text('version_history_hash'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
   deletedAt: text('deleted_at'),
@@ -32,6 +34,8 @@ export const documentVersions = sqliteTable('document_versions', {
   authorId: text('author_id').notNull(),
   authorName: text('author_name').notNull(),
   changeNote: text('change_note').notNull().default(''),
+  contentHash: text('content_hash').notNull().default(''),
+  historyHash: text('history_hash').notNull().default(''),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 }, (table) => [
   index('idx_versions_document_id').on(table.documentId),

@@ -6,7 +6,9 @@ import {
   DocumentAttachment,
   DocumentAttachmentFile,
   DocumentVersion,
+  DocumentVersionIntegrity,
   CreateDocumentDto,
+  CreateDocumentFromVersionDto,
   LoginDTO,
   RegisterDTO,
   UpdateDocumentDto,
@@ -27,10 +29,12 @@ declare global {
         getAll(): Promise<Document[]>;
         getById(id: string): Promise<Document | undefined>;
         create(dto: CreateDocumentDto): Promise<Document>;
+        createFromVersion(dto: CreateDocumentFromVersionDto): Promise<Document>;
         update(id: string, dto: UpdateDocumentDto): Promise<Document>;
         restoreVersion(id: string, versionNumber: number): Promise<Document>;
         delete(id: string): Promise<void>;
         getVersions(id: string): Promise<DocumentVersion[]>;
+        checkVersionIntegrity(id: string): Promise<DocumentVersionIntegrity>;
         getAttachments(id: string): Promise<DocumentAttachment[]>;
         addAttachment(id: string, dto: AddDocumentAttachmentDto): Promise<DocumentAttachment>;
         getAttachmentFile(id: string, attachmentId: string): Promise<DocumentAttachmentFile>;

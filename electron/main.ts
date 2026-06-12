@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { IPC } from '../src/shared/ipcChannels';
 import { DocumentService } from '../src/main/services/DocumentService';
-import { AddDocumentAttachmentDto, CreateDocumentDto, UpdateDocumentDto } from '../src/shared/types';
+import { AddDocumentAttachmentDto, CreateDocumentDto, CreateDocumentFromVersionDto, UpdateDocumentDto } from '../src/shared/types';
 import { initDatabase, closeDatabase } from '../src/main/db';
 import { DocumentRepository } from '@main/repositories/documentRepository/DocumentRepository';
 import { registerAuthHandlers } from '../src/main/ipc/handlers/authHandlers';
@@ -58,6 +58,10 @@ async function registerIpcHandlers(): Promise<void> {
     service.createDocument(dto),
   );
   ipcMain.handle(
+    IPC.DOCUMENTS.CREATE_FROM_VERSION,
+    (_, dto: CreateDocumentFromVersionDto) => service.createDocumentFromVersion(dto),
+  );
+  ipcMain.handle(
     IPC.DOCUMENTS.UPDATE,
     (_, id: string, dto: UpdateDocumentDto) => service.updateDocument(id, dto),
   );
@@ -69,6 +73,9 @@ async function registerIpcHandlers(): Promise<void> {
   );
   ipcMain.handle(IPC.DOCUMENTS.GET_VERSIONS, (_, id: string) =>
     service.getDocumentVersions(id),
+  );
+  ipcMain.handle(IPC.DOCUMENTS.CHECK_VERSION_INTEGRITY, (_, id: string) =>
+    service.checkVersionHistoryIntegrity(id),
   );
   ipcMain.handle(IPC.DOCUMENTS.GET_ATTACHMENTS, (_, id: string) =>
     fileStorageService.getAttachments(id),
