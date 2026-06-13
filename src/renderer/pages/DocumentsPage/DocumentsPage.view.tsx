@@ -10,6 +10,10 @@ interface DocumentsPageViewProps {
 export const DocumentsPageView = observer(function DocumentsPageView({
   controller,
 }: DocumentsPageViewProps) {
+  const openDocumentation = () => {
+    window.open('http://localhost:3000/docs/intro', '_blank');
+  };
+
   return (
     <div className="page-shell">
       <section className="page-hero">
@@ -20,6 +24,14 @@ export const DocumentsPageView = observer(function DocumentsPageView({
             Просматривайте документы, фильтруйте их по статусу и открывайте карточку
             документа, не теряя контекст основной страницы.
           </p>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={openDocumentation}
+            style={{ marginTop: '1rem' }}
+          >
+            Руководство пользователя
+          </button>
         </div>
 
         <div className="hero-metrics">
